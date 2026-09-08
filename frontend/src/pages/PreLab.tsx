@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { get, post } from '../lib/api'
+import { PageHeader } from '../components/ui'
 
 interface Question {
   id: string
@@ -32,11 +33,10 @@ export function PreLab() {
 
   return (
     <>
-      <h2>Pre-Lab Assessment</h2>
-      <p className="lede">
-        A short check of the concepts the week depends on. Wrong answers point you at the
-        Knowledge Bank rather than blocking you.
-      </p>
+      <PageHeader
+        title="Pre-Lab Assessment"
+        lede="A short check of the concepts the week depends on. Wrong answers point you at the Knowledge Bank rather than blocking you."
+      />
 
       {questions.map((question) => {
         const feedback = result?.feedback.find((f) => f.id === question.id)

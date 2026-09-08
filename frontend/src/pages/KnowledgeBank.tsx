@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { get } from '../lib/api'
-import { PageHeader, Skeleton } from '../components/ui'
+import { Band, PageHeader, SectionHead, Skeleton } from '../components/ui'
 import { EvidenceList } from '../components/Evidence'
 import type { EvidenceRef } from '../lib/types'
 
@@ -36,15 +36,14 @@ export function KnowledgeBank() {
 
   return (
     <>
-      <h2>Knowledge Bank</h2>
-      <p className="lede">
-        Concepts, how each kind of data is generated, and what each method can and cannot
-        tell you.
-      </p>
+      <PageHeader
+        title="Knowledge Bank"
+        lede="Concepts, how each kind of data is generated, and what each method can and cannot tell you."
+      />
 
-      {categories.map((category) => (
-        <section key={category}>
-          <h3>{category}</h3>
+      {categories.map((category, index) => (
+        <Band key={category} tint={index % 2 === 0}>
+          <SectionHead title={category} />
           <div className="grid">
             {data.cards
               .filter((card) => card.category === category)
@@ -61,24 +60,26 @@ export function KnowledgeBank() {
                 </article>
               ))}
           </div>
-        </section>
+        </Band>
       ))}
 
-      <section>
-        <h3>Glossary</h3>
-        <div className="card scroll">
-          <table>
-            <tbody>
-              {data.glossary.map((entry) => (
-                <tr key={entry.term}>
-                  <th style={{ width: 220 }}>{entry.term}</th>
-                  <td>{entry.definition}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <Band tint={categories.length % 2 === 0}>
+        <SectionHead title="Glossary" />
+        <div className="card">
+          <div className="scroll">
+            <table>
+              <tbody>
+                {data.glossary.map((entry) => (
+                  <tr key={entry.term}>
+                    <th style={{ width: 220 }}>{entry.term}</th>
+                    <td>{entry.definition}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </section>
+      </Band>
     </>
   )
 }

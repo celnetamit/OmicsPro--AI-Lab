@@ -82,8 +82,7 @@ export function Upgrade() {
 
   return (
     <>
-      <h2>Access Options</h2>
-      <p className="lede">{data.note}</p>
+      <PageHeader title="Access Options" lede={data.note} />
 
       <div className="grid">
         {data.columns.map((column) => (
@@ -122,26 +121,28 @@ export function Upgrade() {
       {purchases.length ? (
         <div className="card">
           <h3>Your orders</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>Tier</th>
-                <th>Status</th>
-                <th>Placed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {purchases.map((purchase) => (
-                <tr key={purchase.id}>
-                  <td>{purchase.id.slice(0, 8)}</td>
-                  <td>{purchase.tier}</td>
-                  <td>{purchase.status.replace(/_/g, ' ')}</td>
-                  <td>{new Date(purchase.createdAt).toLocaleDateString()}</td>
+          <div className="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Tier</th>
+                  <th>Status</th>
+                  <th>Placed</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {purchases.map((purchase) => (
+                  <tr key={purchase.id}>
+                    <td>{purchase.id.slice(0, 8)}</td>
+                    <td>{purchase.tier}</td>
+                    <td>{purchase.status.replace(/_/g, ' ')}</td>
+                    <td>{new Date(purchase.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : null}
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ApiError, get, post } from '../lib/api'
+import { PageHeader } from '../components/ui'
 
 export function Admin() {
   const [usage, setUsage] = useState<any>(null)
@@ -36,15 +37,14 @@ export function Admin() {
 
   return (
     <>
-      <h2>Admin and SME Console</h2>
-      <p className="lede">
-        Entitlements, datasets, module availability and runtime settings are configurable
-        here. Scientific methods are versioned code changes, not runtime settings.
-      </p>
+      <PageHeader
+        title="Admin and SME Console"
+        lede="Entitlements, datasets, module availability and runtime settings are configurable here. Scientific methods are versioned code changes, not runtime settings."
+      />
 
       <div className="card">
         <h3>Usage</h3>
-        <pre style={{ fontSize: 12.5 }}>{JSON.stringify(usage, null, 2)}</pre>
+        <pre className="small">{JSON.stringify(usage, null, 2)}</pre>
       </div>
 
       <div className="card">
@@ -92,38 +92,40 @@ export function Admin() {
         {purchases.length === 0 ? (
           <p className="hint">No orders placed.</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>User</th>
-                <th>Tier</th>
-                <th>Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {purchases.map((purchase) => (
-                <tr key={purchase.id}>
-                  <td>{purchase.id.slice(0, 8)}</td>
-                  <td>{purchase.userId.slice(0, 8)}</td>
-                  <td>{purchase.tier}</td>
-                  <td>{purchase.status.replace(/_/g, ' ')}</td>
-                  <td>
-                    {purchase.status === 'activated' ? null : (
-                      <button
-                        className="secondary"
-                        disabled={!reference}
-                        onClick={() => activate(purchase.id)}
-                      >
-                        Activate
-                      </button>
-                    )}
-                  </td>
+          <div className="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>User</th>
+                  <th>Tier</th>
+                  <th>Status</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {purchases.map((purchase) => (
+                  <tr key={purchase.id}>
+                    <td>{purchase.id.slice(0, 8)}</td>
+                    <td>{purchase.userId.slice(0, 8)}</td>
+                    <td>{purchase.tier}</td>
+                    <td>{purchase.status.replace(/_/g, ' ')}</td>
+                    <td>
+                      {purchase.status === 'activated' ? null : (
+                        <button
+                          className="secondary"
+                          disabled={!reference}
+                          onClick={() => activate(purchase.id)}
+                        >
+                          Activate
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -162,24 +164,26 @@ export function Admin() {
         {failures.length === 0 ? (
           <p className="hint">No failed runs.</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Run</th>
-                <th>Last valid step</th>
-                <th>Message</th>
-              </tr>
-            </thead>
-            <tbody>
-              {failures.map((failure) => (
-                <tr key={failure.id}>
-                  <td>{failure.id.slice(0, 8)}</td>
-                  <td>{failure.lastValidStep ?? '—'}</td>
-                  <td>{failure.errorMessage}</td>
+          <div className="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Run</th>
+                  <th>Last valid step</th>
+                  <th>Message</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {failures.map((failure) => (
+                  <tr key={failure.id}>
+                    <td>{failure.id.slice(0, 8)}</td>
+                    <td>{failure.lastValidStep ?? '—'}</td>
+                    <td>{failure.errorMessage}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>

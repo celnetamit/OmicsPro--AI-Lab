@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Gated } from '../components/Locked'
 import { ApiError, getToken } from '../lib/api'
 import { useSession } from '../components/Session'
+import { PageHeader } from '../components/ui'
 
 const TRACK_LABEL: Record<string, string> = {
   foundation: 'Foundation — Bulk RNA-seq',
@@ -12,11 +13,10 @@ const TRACK_LABEL: Record<string, string> = {
 export function Upload() {
   return (
     <>
-      <h2>Upload a Dataset</h2>
-      <p className="lede">
-        Bring an analysis-ready dataset of your own. It is validated in full before any
-        pipeline can read it.
-      </p>
+      <PageHeader
+        title="Upload a Dataset"
+        lede="Bring an analysis-ready dataset of your own. It is validated in full before any pipeline can read it."
+      />
       <Gated feature="dataset_upload">
         <UploadForm />
       </Gated>
@@ -71,43 +71,65 @@ function UploadForm() {
           provide.
         </p>
 
-        <label htmlFor="track">Analysis track</label>
-        <select id="track" name="track" required defaultValue="core">
-          {Object.entries(TRACK_LABEL).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <div className="field">
+          <label htmlFor="track">Analysis track</label>
+          <select id="track" name="track" required defaultValue="core">
+            {Object.entries(TRACK_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <label htmlFor="matrix">Expression matrix (genes as rows)</label>
-        <input id="matrix" name="matrix" type="file" accept=".csv,.tsv" required />
+        <div className="field">
+          <label htmlFor="matrix">Expression matrix (genes as rows)</label>
+          <input id="matrix" name="matrix" type="file" accept=".csv,.tsv" required />
+        </div>
 
-        <label htmlFor="metadata">Sample or cell metadata</label>
-        <input id="metadata" name="metadata" type="file" accept=".csv" required />
-        <p className="hint">
-          Every row needs a sample identifier and a condition. Use coded donor
-          identifiers — names, dates of birth, record numbers and contact details are
-          rejected outright.
-        </p>
+        <div className="field">
+          <label htmlFor="metadata">Sample or cell metadata</label>
+          <input id="metadata" name="metadata" type="file" accept=".csv" required />
+          <p className="hint">
+            Every row needs a sample identifier and a condition. Use coded donor
+            identifiers — names, dates of birth, record numbers and contact details are
+            rejected outright.
+          </p>
+        </div>
 
-        <h3 style={{ marginTop: 20 }}>Provenance</h3>
+        <h3 className="mt-5">Provenance</h3>
         <p className="hint">
           Provenance is required. A dataset with no recorded source cannot be cited in a
           report, so it cannot be analysed here.
         </p>
-        <label htmlFor="name">Dataset name</label>
-        <input id="name" name="name" required />
-        <label htmlFor="source">Source</label>
-        <input id="source" name="source" required placeholder="e.g. NCBI Gene Expression Omnibus" />
-        <label htmlFor="accession">Accession or internal identifier</label>
-        <input id="accession" name="accession" required />
-        <label htmlFor="license">Licence or terms of use</label>
-        <input id="license" name="license" required />
-        <label htmlFor="citation">Citation</label>
-        <input id="citation" name="citation" />
-        <label htmlFor="description">Description</label>
-        <textarea id="description" name="description" />
+        <div className="grid-2">
+          <div className="field">
+            <label htmlFor="name">Dataset name</label>
+            <input id="name" name="name" required />
+          </div>
+          <div className="field">
+            <label htmlFor="source">Source</label>
+            <input id="source" name="source" required placeholder="e.g. NCBI Gene Expression Omnibus" />
+          </div>
+        </div>
+        <div className="grid-2">
+          <div className="field">
+            <label htmlFor="accession">Accession or internal identifier</label>
+            <input id="accession" name="accession" required />
+          </div>
+          <div className="field">
+            <label htmlFor="license">Licence or terms of use</label>
+            <input id="license" name="license" required />
+          </div>
+        </div>
+        <div className="field">
+          <label htmlFor="citation">Citation</label>
+          <input id="citation" name="citation" />
+        </div>
+        <div className="field">
+          <label htmlFor="description">Description</label>
+          <textarea id="description" name="description" />
+        </div>
 
         <p className="caveat">
           Only public, teaching or properly de-identified data may be uploaded.
@@ -146,26 +168,28 @@ function UploadForm() {
         <div className="card">
           <h3>{result.name}</h3>
           <p>Validated and stored as an internal analysis object.</p>
-          <table>
-            <tbody>
-              <tr>
-                <th>Retention</th>
-                <td>
-                  {result.governance.retentionDays
-                    ? `${result.governance.retentionDays} days`
-                    : 'indefinite'}
-                </td>
-              </tr>
-              <tr>
-                <th>Used for model training</th>
-                <td>no</td>
-              </tr>
-              <tr>
-                <th>Shared with other users</th>
-                <td>no</td>
-              </tr>
-            </tbody>
-          </table>
+          <div className="scroll">
+            <table>
+              <tbody>
+                <tr>
+                  <th>Retention</th>
+                  <td>
+                    {result.governance.retentionDays
+                      ? `${result.governance.retentionDays} days`
+                      : 'indefinite'}
+                  </td>
+                </tr>
+                <tr>
+                  <th>Used for model training</th>
+                  <td>no</td>
+                </tr>
+                <tr>
+                  <th>Shared with other users</th>
+                  <td>no</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <p className="hint">{result.governance.note}</p>
         </div>
       ) : null}

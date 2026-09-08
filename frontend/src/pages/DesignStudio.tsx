@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { get, post, ApiError } from '../lib/api'
+import { PageHeader } from '../components/ui'
 
 interface Brief {
   id: string
@@ -92,69 +93,70 @@ export function DesignStudio() {
 
   return (
     <>
-      <h2>Experimental Design Studio</h2>
-      <p className="lede">
-        Week 1. Turn a research brief into a design and a metadata plan before any data is
-        touched.
-      </p>
+      <PageHeader
+        title="Experimental Design Studio"
+        lede="Week 1. Turn a research brief into a design and a metadata plan before any data is touched."
+      />
 
-      <div className="card">
-        <h3>Research brief</h3>
-        <select value={briefId} onChange={(e) => setBriefId(e.target.value)}>
-          {briefs.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.title}
-            </option>
-          ))}
-        </select>
-        {brief ? (
-          <>
-            <p style={{ marginTop: 12 }}>{brief.context}</p>
-            <p className="hint">
-              <strong>Decision goal:</strong> {brief.decisionGoal}
-            </p>
-          </>
-        ) : null}
-
-        <label htmlFor="question">Biological question</label>
-        <textarea id="question" value={question} onChange={(e) => setQuestion(e.target.value)} />
-
-        <label htmlFor="goal">What decision will this analysis support?</label>
-        <textarea id="goal" value={decisionGoal} onChange={(e) => setDecisionGoal(e.target.value)} />
-      </div>
-
-      <div className="card">
-        <h3>Choose an assay</h3>
-        <select value={assay} onChange={(e) => setAssay(e.target.value)}>
-          <option value="">Select…</option>
-          {Object.keys(assays).map((key) => (
-            <option key={key} value={key}>
-              {TRACK_LABEL[key] ?? key}
-            </option>
-          ))}
-        </select>
-        {tradeoffs ? (
-          <>
-            <p style={{ marginTop: 12 }}>
-              <strong>What it measures:</strong> {tradeoffs.measures}
-            </p>
-            <p>
-              <strong>Strengths</strong>
-            </p>
-            <ul>
-              {tradeoffs.strengths.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-            {tradeoffs.limitations.map((item) => (
-              <p className="caveat" key={item}>
-                {item}
-              </p>
+      <div className="grid-2">
+        <div className="card">
+          <h3>Research brief</h3>
+          <select value={briefId} onChange={(e) => setBriefId(e.target.value)}>
+            {briefs.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.title}
+              </option>
             ))}
-          </>
-        ) : null}
-        <label htmlFor="justify">Why this assay for this question?</label>
-        <textarea id="justify" value={justification} onChange={(e) => setJustification(e.target.value)} />
+          </select>
+          {brief ? (
+            <>
+              <p className="mt-4">{brief.context}</p>
+              <p className="hint">
+                <strong>Decision goal:</strong> {brief.decisionGoal}
+              </p>
+            </>
+          ) : null}
+
+          <label htmlFor="question">Biological question</label>
+          <textarea id="question" value={question} onChange={(e) => setQuestion(e.target.value)} />
+
+          <label htmlFor="goal">What decision will this analysis support?</label>
+          <textarea id="goal" value={decisionGoal} onChange={(e) => setDecisionGoal(e.target.value)} />
+        </div>
+
+        <div className="card">
+          <h3>Choose an assay</h3>
+          <select value={assay} onChange={(e) => setAssay(e.target.value)}>
+            <option value="">Select…</option>
+            {Object.keys(assays).map((key) => (
+              <option key={key} value={key}>
+                {TRACK_LABEL[key] ?? key}
+              </option>
+            ))}
+          </select>
+          {tradeoffs ? (
+            <>
+              <p className="mt-4">
+                <strong>What it measures:</strong> {tradeoffs.measures}
+              </p>
+              <p>
+                <strong>Strengths</strong>
+              </p>
+              <ul>
+                {tradeoffs.strengths.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              {tradeoffs.limitations.map((item) => (
+                <p className="caveat" key={item}>
+                  {item}
+                </p>
+              ))}
+            </>
+          ) : null}
+          <label htmlFor="justify">Why this assay for this question?</label>
+          <textarea id="justify" value={justification} onChange={(e) => setJustification(e.target.value)} />
+        </div>
       </div>
 
       <div className="card">
@@ -191,11 +193,7 @@ export function DesignStudio() {
             </tbody>
           </table>
         </div>
-        <button
-          className="secondary"
-          style={{ marginTop: 12 }}
-          onClick={() => setRows([...rows, { ...EMPTY_ROW }])}
-        >
+        <button className="secondary mt-4" onClick={() => setRows([...rows, { ...EMPTY_ROW }])}>
           Add a sample
         </button>
         <p className="hint">
@@ -224,7 +222,7 @@ export function DesignStudio() {
         </div>
       ) : null}
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div className="row">
         <button className="secondary" onClick={check}>
           Check the design
         </button>

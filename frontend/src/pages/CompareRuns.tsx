@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ApiError, get } from '../lib/api'
 import { Gated } from '../components/Locked'
+import { PageHeader } from '../components/ui'
 import type { RunSummary } from '../lib/types'
 
 interface SettingRow {
@@ -34,11 +35,10 @@ interface Comparison {
 export function CompareRuns() {
   return (
     <>
-      <h2>Compare Runs</h2>
-      <p className="lede">
-        Put an original run beside one with alternate settings and see what changed —
-        and, of what changed, which conclusions moved with it.
-      </p>
+      <PageHeader
+        title="Compare Runs"
+        lede="Put an original run beside one with alternate settings and see what changed — and, of what changed, which conclusions moved with it."
+      />
       <Gated feature="compare_runs">
         <Comparison />
       </Gated>
@@ -85,7 +85,7 @@ function Comparison() {
   return (
     <>
       <div className="card">
-        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: '1fr 1fr' }}>
+        <div className="grid-2">
           {(['original', 'alternate'] as const).map((side) => (
             <div key={side}>
               <label htmlFor={side}>{side === 'original' ? 'Original run' : 'Alternate run'}</label>
@@ -121,27 +121,29 @@ function Comparison() {
             {result.changedSettings.length === 0 ? (
               <p className="hint">These two runs used identical settings.</p>
             ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Setting</th>
-                    <th>Original</th>
-                    <th>Alternate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.changedSettings.map((row) => (
-                    <tr key={row.key}>
-                      <td>
-                        {row.label}
-                        <div className="hint">{row.methodRule}</div>
-                      </td>
-                      <td>{String(row.before)}</td>
-                      <td>{String(row.after)}</td>
+              <div className="scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Setting</th>
+                      <th>Original</th>
+                      <th>Alternate</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {result.changedSettings.map((row) => (
+                      <tr key={row.key}>
+                        <td>
+                          {row.label}
+                          <div className="hint">{row.methodRule}</div>
+                        </td>
+                        <td>{String(row.before)}</td>
+                        <td>{String(row.after)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
@@ -183,24 +185,26 @@ function Comparison() {
                 here yet.
               </p>
             ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Step</th>
-                    <th>Original label</th>
-                    <th>Alternate label</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.changedConclusions.map((row) => (
-                    <tr key={row.step}>
-                      <td>{row.step}</td>
-                      <td>{row.before ?? '—'}</td>
-                      <td>{row.after ?? '—'}</td>
+              <div className="scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Step</th>
+                      <th>Original label</th>
+                      <th>Alternate label</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {result.changedConclusions.map((row) => (
+                      <tr key={row.step}>
+                        <td>{row.step}</td>
+                        <td>{row.before ?? '—'}</td>
+                        <td>{row.after ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </>

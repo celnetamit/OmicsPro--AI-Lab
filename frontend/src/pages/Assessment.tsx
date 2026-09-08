@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { get } from '../lib/api'
 import { LabelPill } from '../components/Evidence'
+import { PageHeader } from '../components/ui'
 import type { InterpretationLabel, RunSummary } from '../lib/types'
 
 interface InteractionRow {
@@ -39,13 +40,12 @@ export function Assessment() {
 
   return (
     <>
-      <h2>Assessment</h2>
-      <p className="lede">
-        Your concept answers sit in the Pre-Lab screen. This page assesses the decisions you
-        took during analysis and how you interpreted them.
-      </p>
+      <PageHeader
+        title="Assessment"
+        lede="Your concept answers sit in the Pre-Lab screen. This page assesses the decisions you took during analysis and how you interpreted them."
+      />
 
-      <div className="card">
+      <div className="card measure">
         <label htmlFor="run">Run</label>
         <select id="run" value={runId} onChange={(e) => setRunId(e.target.value)}>
           {runs.map((run) => (
@@ -90,29 +90,31 @@ export function Assessment() {
         {interpretations.length === 0 ? (
           <p className="hint">No interpretations recorded for this run yet.</p>
         ) : (
-          interpretations.map((entry) => (
-            <div key={entry.id} style={{ marginBottom: 16 }}>
-              <h4>{entry.step}</h4>
-              <p>
-                <strong>Observation:</strong> {entry.observation || '—'}
-              </p>
-              <p>
-                <strong>Statistical evidence:</strong> {entry.statisticalEvidence || '—'}
-              </p>
-              <p>
-                <strong>Biological interpretation:</strong> {entry.biologicalInterpretation || '—'}
-              </p>
-              <p>
-                <strong>Hypothesis:</strong> {entry.hypothesis || '—'}
-              </p>
-              {!entry.observation || !entry.statisticalEvidence ? (
-                <p className="caveat">
-                  An interpretation is only assessable when the observation and the
-                  statistical evidence are stated separately from the biological reading.
+          <div className="stack">
+            {interpretations.map((entry) => (
+              <div key={entry.id}>
+                <h4>{entry.step}</h4>
+                <p>
+                  <strong>Observation:</strong> {entry.observation || '—'}
                 </p>
-              ) : null}
-            </div>
-          ))
+                <p>
+                  <strong>Statistical evidence:</strong> {entry.statisticalEvidence || '—'}
+                </p>
+                <p>
+                  <strong>Biological interpretation:</strong> {entry.biologicalInterpretation || '—'}
+                </p>
+                <p>
+                  <strong>Hypothesis:</strong> {entry.hypothesis || '—'}
+                </p>
+                {!entry.observation || !entry.statisticalEvidence ? (
+                  <p className="caveat">
+                    An interpretation is only assessable when the observation and the
+                    statistical evidence are stated separately from the biological reading.
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </>

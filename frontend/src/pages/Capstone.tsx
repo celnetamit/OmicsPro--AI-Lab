@@ -35,11 +35,10 @@ interface Readiness {
 export function Capstone() {
   return (
     <>
-      <h2>Capstone Workspace</h2>
-      <p className="lede">
-        Week 8. Assemble the work you have already done into a defensible account: runs,
-        figures, your interpretations, the robustness checks and the AI audit.
-      </p>
+      <PageHeader
+        title="Capstone Workspace"
+        lede="Week 8. Assemble the work you have already done into a defensible account: runs, figures, your interpretations, the robustness checks and the AI audit."
+      />
       <Gated feature="capstone_workspace">
         <Workspace />
       </Gated>
@@ -114,7 +113,6 @@ function Workspace() {
   if (!state) {
     return (
       <>
-        <PageHeader title="Capstone Workspace" />
         <Skeleton lines={4} />
         <span className="visually-hidden" role="status">
           Loading
@@ -163,73 +161,75 @@ function Workspace() {
         />
       </div>
 
-      <div className="card">
-        <h3>Runs this rests on</h3>
-        <p className="hint">
-          Only completed runs can support a claim. Each one brings its own dataset
-          provenance, method versions and parameters with it.
-        </p>
-        {completed.map((run) => (
-          <label key={run.id} style={{ fontWeight: 400, display: 'flex', gap: 8 }}>
-            <input
-              type="checkbox"
-              style={{ width: 'auto' }}
-              disabled={locked}
-              checked={state.runIds.includes(run.id)}
-              onChange={(event) =>
-                save({
-                  runIds: event.target.checked
-                    ? [...state.runIds, run.id]
-                    : state.runIds.filter((id) => id !== run.id),
-                })
-              }
-            />
-            {run.id.slice(0, 8)} · {run.track}
-            {run.module ? ` · ${run.module}` : ''} ·{' '}
-            {run.isOriginal ? 'original' : 'alternate settings'}
-          </label>
-        ))}
-      </div>
-
-      <div className="card">
-        <h3>Figure pack</h3>
-        {figureOptions.length === 0 ? (
+      <div className="grid-2">
+        <div className="card">
+          <h3>Runs this rests on</h3>
           <p className="hint">
-            Attach a completed run above to see the figures its outputs can support.
+            Only completed runs can support a claim. Each one brings its own dataset
+            provenance, method versions and parameters with it.
           </p>
-        ) : (
-          figureOptions.map((option) => {
-            const selected = state.figures.some(
-              (f) => f.figureId === option.id && f.runId === option.runId,
-            )
-            return (
-              <label
-                key={`${option.runId}:${option.id}`}
-                style={{ fontWeight: 400, display: 'flex', gap: 8, alignItems: 'flex-start' }}
-              >
-                <input
-                  type="checkbox"
-                  style={{ width: 'auto', marginTop: 4 }}
-                  disabled={locked}
-                  checked={selected}
-                  onChange={(event) =>
-                    save({
-                      figures: event.target.checked
-                        ? [...state.figures, { figureId: option.id, runId: option.runId }]
-                        : state.figures.filter(
-                            (f) => !(f.figureId === option.id && f.runId === option.runId),
-                          ),
-                    })
-                  }
-                />
-                <span>
-                  <strong>{option.label}</strong> · {option.runId.slice(0, 8)}
-                  <div className="hint">{option.caption}</div>
-                </span>
-              </label>
-            )
-          })
-        )}
+          {completed.map((run) => (
+            <label key={run.id} style={{ fontWeight: 400, display: 'flex', gap: 8 }}>
+              <input
+                type="checkbox"
+                style={{ width: 'auto' }}
+                disabled={locked}
+                checked={state.runIds.includes(run.id)}
+                onChange={(event) =>
+                  save({
+                    runIds: event.target.checked
+                      ? [...state.runIds, run.id]
+                      : state.runIds.filter((id) => id !== run.id),
+                  })
+                }
+              />
+              {run.id.slice(0, 8)} · {run.track}
+              {run.module ? ` · ${run.module}` : ''} ·{' '}
+              {run.isOriginal ? 'original' : 'alternate settings'}
+            </label>
+          ))}
+        </div>
+
+        <div className="card">
+          <h3>Figure pack</h3>
+          {figureOptions.length === 0 ? (
+            <p className="hint">
+              Attach a completed run to see the figures its outputs can support.
+            </p>
+          ) : (
+            figureOptions.map((option) => {
+              const selected = state.figures.some(
+                (f) => f.figureId === option.id && f.runId === option.runId,
+              )
+              return (
+                <label
+                  key={`${option.runId}:${option.id}`}
+                  style={{ fontWeight: 400, display: 'flex', gap: 8, alignItems: 'flex-start' }}
+                >
+                  <input
+                    type="checkbox"
+                    style={{ width: 'auto', marginTop: 4 }}
+                    disabled={locked}
+                    checked={selected}
+                    onChange={(event) =>
+                      save({
+                        figures: event.target.checked
+                          ? [...state.figures, { figureId: option.id, runId: option.runId }]
+                          : state.figures.filter(
+                              (f) => !(f.figureId === option.id && f.runId === option.runId),
+                            ),
+                      })
+                    }
+                  />
+                  <span>
+                    <strong>{option.label}</strong> · {option.runId.slice(0, 8)}
+                    <div className="hint">{option.caption}</div>
+                  </span>
+                </label>
+              )
+            })
+          )}
+        </div>
       </div>
 
       <div className="card">
@@ -258,7 +258,7 @@ function Workspace() {
 
       {error ? <p className="warning">{error}</p> : null}
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <div className="row">
         <button className="secondary" onClick={buildDeck}>
           Build the defence deck
         </button>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ApiError, get, post } from '../lib/api'
 import { LockNote } from '../components/Locked'
 import { useSession } from '../components/Session'
+import { PageHeader } from '../components/ui'
 import type { RunSummary } from '../lib/types'
 
 interface ReportRow {
@@ -37,11 +38,10 @@ export function Reports() {
 
   return (
     <>
-      <h2>Report and Portfolio</h2>
-      <p className="lede">
-        Methods, settings, results, interpretations, limitations and references, exported at
-        your access level.
-      </p>
+      <PageHeader
+        title="Report and Portfolio"
+        lede="Methods, settings, results, interpretations, limitations and references, exported at your access level."
+      />
 
       <div className="card">
         <h3>Build a report</h3>
@@ -49,23 +49,26 @@ export function Reports() {
           Formats available to you: {matrix?.allowance.exportFormats.join(', ')}
         </p>
         <LockNote feature="report_full" />
-        {runs
-          .filter((run) => run.status === 'completed')
-          .map((run) => (
-            <div key={run.id} style={{ marginBottom: 10 }}>
-              <strong>{run.id.slice(0, 8)}</strong> · {run.track} ·{' '}
-              {(matrix?.allowance.exportFormats ?? []).map((format) => (
-                <button
-                  key={format}
-                  className="secondary"
-                  style={{ marginRight: 6 }}
-                  onClick={() => build(run.id, format)}
-                >
-                  {format}
-                </button>
-              ))}
-            </div>
-          ))}
+        <div className="stack">
+          {runs
+            .filter((run) => run.status === 'completed')
+            .map((run) => (
+              <div key={run.id} className="row">
+                <span>
+                  <strong>{run.id.slice(0, 8)}</strong> · {run.track} ·
+                </span>
+                {(matrix?.allowance.exportFormats ?? []).map((format) => (
+                  <button
+                    key={format}
+                    className="secondary"
+                    onClick={() => build(run.id, format)}
+                  >
+                    {format}
+                  </button>
+                ))}
+              </div>
+            ))}
+        </div>
         {error ? <p className="warning">{error}</p> : null}
       </div>
 
@@ -74,37 +77,39 @@ export function Reports() {
         {reports.length === 0 ? (
           <p className="hint">No reports yet.</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Report</th>
-                <th>Format</th>
-                <th>Generated at tier</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reports.map((report) => (
-                <tr key={report.id}>
-                  <td>
-                    <a
-                      href="#"
-                      onClick={async (event) => {
-                        event.preventDefault()
-                        const full = await get<any>(`/api/reports/${report.id}`)
-                        setContent(full.content)
-                      }}
-                    >
-                      {report.id.slice(0, 8)}
-                    </a>
-                  </td>
-                  <td>{report.exportFormat}</td>
-                  <td>{report.generatedTier}</td>
-                  <td>{new Date(report.createdAt).toLocaleString()}</td>
+          <div className="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Report</th>
+                  <th>Format</th>
+                  <th>Generated at tier</th>
+                  <th>Created</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {reports.map((report) => (
+                  <tr key={report.id}>
+                    <td>
+                      <a
+                        href="#"
+                        onClick={async (event) => {
+                          event.preventDefault()
+                          const full = await get<any>(`/api/reports/${report.id}`)
+                          setContent(full.content)
+                        }}
+                      >
+                        {report.id.slice(0, 8)}
+                      </a>
+                    </td>
+                    <td>{report.exportFormat}</td>
+                    <td>{report.generatedTier}</td>
+                    <td>{new Date(report.createdAt).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <p className="hint">
           Reports stay readable if a paid tier later expires. Access changes do not delete
@@ -118,16 +123,18 @@ export function Reports() {
           <h4>Methods</h4>
           <pre style={{ fontSize: 12.5 }}>{JSON.stringify(content.methods, null, 2)}</pre>
           <h4>Settings</h4>
-          <table>
-            <tbody>
-              {content.settings?.map((setting: any) => (
-                <tr key={setting.key}>
-                  <th>{setting.label}</th>
-                  <td>{String(setting.value)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="scroll">
+            <table>
+              <tbody>
+                {content.settings?.map((setting: any) => (
+                  <tr key={setting.key}>
+                    <th>{setting.label}</th>
+                    <td>{String(setting.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <h4>Limitations</h4>
           <ul>
             {content.limitations?.map((limitation: string) => (

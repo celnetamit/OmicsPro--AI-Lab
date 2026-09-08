@@ -87,18 +87,47 @@ export function HeroStats({ items }: { items: { value: ReactNode; name: string }
   )
 }
 
+/**
+ * A full-width horizontal section.
+ *
+ * The band spans the viewport while its contents stay on the page's single
+ * shared column edge, so every heading, card and table down the page lines up
+ * with every other. Alternate `tint` between neighbours to separate one
+ * section from the next without drawing a rule.
+ */
+export function Band({
+  children,
+  tint = false,
+  accent = false,
+  id,
+}: {
+  children: ReactNode
+  tint?: boolean
+  accent?: boolean
+  id?: string
+}) {
+  const kind = accent ? ' accent' : tint ? ' tint' : ''
+  return (
+    <section className={`band${kind}`} id={id}>
+      {children}
+    </section>
+  )
+}
+
 /** Bold section title with an optional action on the right. */
 export function SectionHead({
   title,
   sub,
   action,
+  centred = false,
 }: {
   title: string
   sub?: ReactNode
   action?: ReactNode
+  centred?: boolean
 }) {
   return (
-    <div className="section-head">
+    <div className={`section-head${centred ? ' centred' : ''}`}>
       <div>
         <h3>{title}</h3>
         {sub ? <p className="sub">{sub}</p> : null}

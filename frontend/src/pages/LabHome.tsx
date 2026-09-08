@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { get } from '../lib/api'
-import { EmptyState, HeroStats, PageHeader, SectionHead, Skeleton, StatusPill } from '../components/ui'
+import { Band, EmptyState, HeroStats, PageHeader, SectionHead, Skeleton, StatusPill } from '../components/ui'
 import { TRACK_ICONS } from '../components/icons'
 import { useSession } from '../components/Session'
 import type { FeatureRow, RunSummary, WeekRow } from '../lib/types'
@@ -80,9 +80,13 @@ export function LabHome() {
         />
       </PageHeader>
 
-      <SectionHead title="Program progress" sub="Eight weeks, each opening its own Live Lab module." />
-      <div className="card">
-        <div className="scroll">
+      <Band tint>
+        <SectionHead
+          title="Program progress"
+          sub="Eight weeks, each opening its own Live Lab module."
+        />
+        <div className="card">
+          <div className="scroll">
           <table>
             <thead>
               <tr>
@@ -102,15 +106,18 @@ export function LabHome() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
-      </div>
+      </Band>
 
-      <SectionHead
-        title="Analysis tracks open to you"
-        sub="Track names describe the science being done. They are separate from your access tier, which describes what you may run and export."
-      />
-      <div className="grid">
+      <Band>
+        <SectionHead
+          centred
+          title="Analysis tracks open to you"
+          sub="Track names describe the science being done. They are separate from your access tier, which describes what you may run and export."
+        />
+        <div className="grid">
         {home.availableTracks.map((track) => (
           <div className="card interactive" key={track.track}>
             <span className="icon-tile">{TRACK_ICONS[track.track] ?? TRACK_ICONS.default}</span>
@@ -120,10 +127,13 @@ export function LabHome() {
               Choose a dataset
             </Link>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </Band>
 
-      <div className="grid-2 mt-5">
+      <Band tint>
+        <SectionHead title="Your week 1 work" sub="Both are open now." />
+        <div className="grid-2">
         <div className="card">
           <h3>Week 1 design plan</h3>
           <p className="hint">
@@ -145,18 +155,20 @@ export function LabHome() {
           <Link className="button secondary mt-4" to="/pre-lab">
             Take the assessment
           </Link>
+          </div>
         </div>
-      </div>
+      </Band>
 
-      <SectionHead
-        title="Recent runs"
-        action={
-          <Link className="arrow-link" to="/runs">
-            View all runs
-          </Link>
-        }
-      />
-      <div className="card">
+      <Band>
+        <SectionHead
+          title="Recent runs"
+          action={
+            <Link className="arrow-link" to="/runs">
+              View all runs
+            </Link>
+          }
+        />
+        <div className="card">
         {home.recentRuns.length === 0 ? (
           <EmptyState
             title="No analyses run yet"
@@ -194,28 +206,46 @@ export function LabHome() {
                   <td>{run.isOriginal ? 'Original' : 'Alternate settings'}</td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-          </div>
-        )}
-      </div>
+              </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Band>
 
       {home.lockedFeatures.length ? (
-        <div className="card locked mt-5">
-          <span className="badge">Not included at your access level</span>
-          <h3>Available with a paid upgrade</h3>
-          <ul>
+        <Band tint>
+          <SectionHead
+            title="Available with a paid upgrade"
+            sub="Every locked capability is listed here with the reason it is locked. Nothing is hidden from you — the teaching content of every week is included at every tier."
+            action={
+              <Link className="arrow-link" to="/upgrade">
+                Compare access options
+              </Link>
+            }
+          />
+          <div className="grid">
             {home.lockedFeatures.map((feature) => (
-              <li key={feature.key}>
-                <strong>{feature.label}</strong> — {feature.lockedExplanation}
-              </li>
+              <div className="card" key={feature.key}>
+                <span className="tag neutral">{feature.minTier} access</span>
+                <h3 className="mt-4">{feature.label}</h3>
+                <p className="hint">{feature.lockedExplanation}</p>
+              </div>
             ))}
-          </ul>
-          <Link className="button secondary" to="/upgrade">
-            Compare access options
-          </Link>
-        </div>
+          </div>
+        </Band>
       ) : null}
+
+      <Band accent>
+        <h3>Take the next analysis further</h3>
+        <p>
+          Paid tiers add depth, repetition and independence: your own parameters, your
+          own datasets, the full spatial workflow and the capstone workspace.
+        </p>
+        <Link className="button" to="/upgrade">
+          Compare access options
+        </Link>
+      </Band>
     </>
   )
 }

@@ -50,55 +50,62 @@ export function RunList() {
 
       {error ? <ErrorNote message={error} /> : null}
 
-      <div className="card">
-        <h3>Your runs</h3>
-        {runs === null ? (
-          <Skeleton lines={3} title={false} />
-        ) : runs.length === 0 ? (
-          <EmptyState
-            title="No analyses yet"
-            action={
-              <Link className="button secondary" to="/datasets">
-                Open the Dataset Selector
-              </Link>
-            }
-          >
-            Pick a dataset to start the guided analysis. Each run keeps its own record,
-            so you can return to it later.
-          </EmptyState>
-        ) : (
-          <div className="scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Run</th>
-                  <th>Track</th>
-                  <th>Status</th>
-                  <th>Pipeline</th>
-                  <th>Kind</th>
-                </tr>
-              </thead>
-              <tbody>
-                {runs.map((run) => (
-                  <tr key={run.id}>
-                    <td>
-                      <Link className="mono" to={`/runs/${run.id}`}>
-                        {run.id.slice(0, 8)}
-                      </Link>
-                    </td>
-                    <td>{run.track}</td>
-                    <td>
-                      <StatusPill status={run.status} />
-                    </td>
-                    <td>{run.pipelineVersion}</td>
-                    <td>{run.isOriginal ? 'Original' : 'Alternate settings'}</td>
+      {runs === null ? (
+        <>
+          <Skeleton lines={4} />
+          <span className="visually-hidden" role="status">
+            Loading your runs
+          </span>
+        </>
+      ) : (
+        <div className="card">
+          <h3>Your runs</h3>
+          {runs.length === 0 ? (
+            <EmptyState
+              title="No analyses yet"
+              action={
+                <Link className="button secondary" to="/datasets">
+                  Open the Dataset Selector
+                </Link>
+              }
+            >
+              Pick a dataset to start the guided analysis. Each run keeps its own record,
+              so you can return to it later.
+            </EmptyState>
+          ) : (
+            <div className="scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Run</th>
+                    <th>Track</th>
+                    <th>Status</th>
+                    <th>Pipeline</th>
+                    <th>Kind</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {runs.map((run) => (
+                    <tr key={run.id}>
+                      <td>
+                        <Link className="mono" to={`/runs/${run.id}`}>
+                          {run.id.slice(0, 8)}
+                        </Link>
+                      </td>
+                      <td>{run.track}</td>
+                      <td>
+                        <StatusPill status={run.status} />
+                      </td>
+                      <td>{run.pipelineVersion}</td>
+                      <td>{run.isOriginal ? 'Original' : 'Alternate settings'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="card">
         <h3>Parameters available to you</h3>

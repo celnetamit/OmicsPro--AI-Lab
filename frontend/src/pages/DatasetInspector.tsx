@@ -84,21 +84,32 @@ export function DatasetInspector() {
 
   return (
     <>
-      <h2>{detail.name}</h2>
-      <p className="lede">{detail.description}</p>
+      <PageHeader
+        title={detail.name}
+        lede={detail.description}
+        actions={
+          detail.inspection ? (
+            <button type="button" onClick={() => startRun()} disabled={busy}>
+              {busy ? 'Starting…' : 'Start the guided analysis'}
+            </button>
+          ) : null
+        }
+      />
 
       <div className="card">
         <h3>Provenance</h3>
-        <table>
-          <tbody>
-            {Object.entries(detail.provenance).map(([key, value]) => (
-              <tr key={key}>
-                <th style={{ width: 180 }}>{key}</th>
-                <td>{String(value)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="scroll">
+          <table>
+            <tbody>
+              {Object.entries(detail.provenance).map(([key, value]) => (
+                <tr key={key}>
+                  <th>{key}</th>
+                  <td>{String(value)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {detail.limitations.map((limitation) => (
@@ -132,34 +143,32 @@ export function DatasetInspector() {
             </p>
           </div>
 
-          <button onClick={() => startRun()} disabled={busy}>
-            {busy ? 'Starting…' : 'Start the guided analysis'}
-          </button>
-
-          {modules
-            .filter((module) => module.track === detail.track)
-            .map((module) => (
-              <div className={`card${module.unlocked ? '' : ' locked'}`} key={module.module}>
-                <span className="badge">Extension module</span>
-                <h3>{module.label}</h3>
-                {module.unlocked ? (
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() => startRun(module.module)}
-                  >
-                    Run this module on this dataset
-                  </button>
-                ) : (
-                  <>
-                    <p className="hint">{module.lockedExplanation}</p>
-                    <Link className="button secondary" to="/upgrade">
-                      Compare access options
-                    </Link>
-                  </>
-                )}
-              </div>
-            ))}
+          <div className="grid">
+            {modules
+              .filter((module) => module.track === detail.track)
+              .map((module) => (
+                <div className={`card${module.unlocked ? '' : ' locked'}`} key={module.module}>
+                  <span className="badge">Extension module</span>
+                  <h3>{module.label}</h3>
+                  {module.unlocked ? (
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => startRun(module.module)}
+                    >
+                      Run this module on this dataset
+                    </button>
+                  ) : (
+                    <>
+                      <p className="hint">{module.lockedExplanation}</p>
+                      <Link className="button secondary" to="/upgrade">
+                        Compare access options
+                      </Link>
+                    </>
+                  )}
+                </div>
+              ))}
+          </div>
         </>
       ) : (
         <p className="warning">{detail.unavailableReason}</p>

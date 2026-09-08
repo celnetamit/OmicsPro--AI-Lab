@@ -54,6 +54,11 @@
   --accent-line: rgba(34, 180, 168, .32);
   --on-accent: #ffffff;
 
+  /* Alternating section grounds. The contrast between them is deliberately
+     slight: it separates one section from the next without drawing a line. */
+  --band: #f7f9fd;
+  --band-alt: #fafbfc;
+
   /* The navigation rail and the hero are dark in both themes: they are
      surfaces, not text, so they must not follow --ink-deep when it inverts. */
   --rail: #0e192f;
@@ -105,7 +110,13 @@
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
 
-  --content-max: 1180px;
+  --content-max: 1400px;
+  --page-pad: 16px;
+  /* THE alignment edge. Every screen and every band insets its content by
+     exactly this, so nothing on the page can drift out of line with anything
+     else. Bands cancel it with an equal negative margin to reach the viewport
+     edge, which is why no vw/scrollbar rounding can creep in. */
+  --gutter: max(var(--page-pad), calc((100vw - var(--content-max)) / 2 + var(--page-pad)));
 
   color-scheme: light;
 }
@@ -121,6 +132,8 @@
     --ink: #e9eef6;
     --ink-deep: #ffffff;
     --rail: #0b1626;
+    --band: #0a1120;
+    --band-alt: #0d1626;
     --ink-soft: #c3cfe0;
     --muted: #8b98ac;
     --muted-soft: #68758a;
@@ -394,12 +407,49 @@ hr { border: 0; border-top: 1px solid var(--line); margin: var(--space-5) 0; }
 
 main { width: 100%; min-width: 0; flex: 1; }
 
-/* The content column. The hero breaks out of it to full width. */
+/* The content column: full width, inset by the shared gutter. */
 .container {
-  max-width: var(--content-max);
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-6) var(--space-8);
+  padding-block: var(--space-6) var(--space-8);
+  padding-inline: var(--gutter);
   min-width: 0;
+}
+
+/* -------------------------------------------------------------- sections -- */
+/* A full-width horizontal band whose content still lines up with .container.
+   The negative margin is exactly the gutter, so the band reaches the viewport
+   edge and its padding puts the content back on the shared edge — the two
+   cancel, and no scrollbar rounding can misalign them. */
+.band {
+  margin-inline: calc(-1 * var(--gutter));
+  padding-block: 80px;
+  padding-inline: var(--gutter);
+  background: var(--band);
+}
+/* Alternating grounds, so the eye can tell one section from the next. */
+.band.tint { background: var(--band-alt); }
+
+/* The closing band, solid accent as on the reference. */
+.band.accent {
+  background: var(--accent);
+  color: var(--on-accent);
+  text-align: center;
+}
+.band.accent h3 { color: var(--on-accent); font-size: 30px; }
+.band.accent p { color: var(--on-accent); opacity: .88; max-width: 58ch; margin-inline: auto; }
+.band.accent .button {
+  background: var(--surface); color: var(--accent); border-color: var(--surface);
+  margin-top: var(--space-5);
+}
+.band.accent .button:hover { background: var(--ink-deep); border-color: var(--ink-deep); color: #fff; }
+
+/* A page that ends in a band supplies its own closing space. */
+.container:has(> .band:last-child) { padding-bottom: 0; }
+
+/* A band's own contents keep the page's vertical rhythm. */
+.band > :last-child { margin-bottom: 0; }
+
+@media (max-width: 1080px) {
+  .band { padding-block: var(--space-7); }
 }
 
 .page-head { margin-bottom: var(--space-5); }
@@ -466,6 +516,11 @@ main { width: 100%; min-width: 0; flex: 1; }
   margin-bottom: var(--space-4);
   box-shadow: var(--shadow);
 }
+/* A lone form or picker on the full-width column: cap it at a comfortable
+   reading and control width rather than letting it stretch to 1400px. Sizing
+   it with a grid track instead would clip the controls inside it. */
+.card.measure { max-width: 640px; }
+
 /* Cards that are themselves a link or an action rise slightly on hover. */
 .card.interactive { transition: transform .16s ease, box-shadow .16s ease; }
 .card.interactive:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); }
@@ -473,10 +528,22 @@ main { width: 100%; min-width: 0; flex: 1; }
 .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); flex-wrap: wrap; }
 .card-head h3 { margin: 0; }
 
-.grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
+.grid {
+  display: grid; gap: var(--space-4);
+  /* auto-fit, not auto-fill: two cards should share the row rather than sit in
+     the first two of four tracks with the rest of the row empty. */
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+}
+/* ...and a card never grows past a readable measure, so a lone card in a
+   1400px row does not become one very long line. */
+.grid > .card { max-width: 640px; }
 .grid-2 { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
 .grid > *, .grid-2 > * { min-width: 0; }
-.grid, .grid-2 { align-items: start; }
+.grid { align-items: stretch; }
+.grid-2 { align-items: start; }
+/* A card in a feature row fills its track, so the row reads as one band. */
+.grid > .card { display: flex; flex-direction: column; }
+.grid > .card > .arrow-link:last-child { margin-top: auto; padding-top: var(--space-3); }
 .row { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; }
 .spread { display: flex; gap: var(--space-3); justify-content: space-between; align-items: center; flex-wrap: wrap; }
 .stack { display: grid; gap: var(--space-3); }
@@ -849,10 +916,11 @@ pre {
   text-align: center;
   /* Full-bleed out of .container. .shell clips the overflow, so the extra
      width of a scrollbar cannot scroll the document sideways. */
-  margin-inline: calc(50% - 50vw);
+  margin-inline: calc(-1 * var(--gutter));
   margin-top: calc(-1 * var(--space-6));
-  margin-bottom: var(--space-7);
-  padding: var(--space-8) var(--space-6);
+  margin-bottom: 0;
+  padding-block: 128px;
+  padding-inline: var(--gutter);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   min-height: 460px;
 }
@@ -870,7 +938,7 @@ pre {
 .hero h2 {
   color: #fff;
   /* Scales with the viewport rather than stepping at one breakpoint. */
-  font-size: clamp(32px, 5.2vw, 62px);
+  font-size: clamp(32px, 5.2vw, 72px);
   line-height: 1.08;
   letter-spacing: -0.035em;
   font-weight: 800;
@@ -939,10 +1007,19 @@ pre {
 .section-head {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: var(--space-4); flex-wrap: wrap;
-  margin: var(--space-6) 0 var(--space-4);
+  margin: 0 0 var(--space-5);
 }
-.section-head h3 { font-size: 21px; margin: 0; letter-spacing: -0.021em; }
-.section-head .sub { font-size: 13.5px; color: var(--muted); margin: var(--space-1) 0 0; }
+.section-head h3 { font-size: 36px; margin: 0; letter-spacing: -0.028em; }
+.section-head .sub { font-size: 15px; color: var(--muted); margin: var(--space-2) 0 0; max-width: 78ch; }
+
+/* Centred variant, as the reference uses on its first section. */
+.section-head.centred { flex-direction: column; align-items: center; text-align: center; }
+.section-head.centred .sub { margin-inline: auto; }
+
+@media (max-width: 1080px) {
+  .section-head h3 { font-size: 25px; }
+  .section-head .sub { font-size: 14px; }
+}
 
 /* A text link that ends in an arrow, which slides on hover. */
 .arrow-link {
@@ -994,3 +1071,4 @@ pre {
   color: var(--accent);
 }
 .tag.neutral { background: var(--surface-sunken); color: var(--muted); }
+.tag { text-transform: capitalize; }

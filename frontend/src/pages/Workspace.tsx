@@ -311,16 +311,18 @@ export function Workspace() {
         <div className="card">
           <span className="badge">What-if</span>
           <h3>Test an analysis decision</h3>
-          {offers.map((offer) => (
-            <div key={offer.key} style={{ marginBottom: 12 }}>
-              <p>
-                <strong>{offer.label}</strong>
-              </p>
-              <button className="secondary" onClick={() => setActiveOffer(offer)}>
-                Review this change
-              </button>
-            </div>
-          ))}
+          <div className="stack">
+            {offers.map((offer) => (
+              <div key={offer.key}>
+                <p>
+                  <strong>{offer.label}</strong>
+                </p>
+                <button className="secondary" onClick={() => setActiveOffer(offer)}>
+                  Review this change
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 
@@ -347,28 +349,30 @@ export function Workspace() {
             </div>
           ) : (
             <>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Metric</th>
-                    <th>Expected</th>
-                    <th>Observed</th>
-                    <th>Before</th>
-                    <th>After</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {perturbationResult.perturbation.actualOutcome?.comparisons?.map((row: any) => (
-                    <tr key={row.metric}>
-                      <td>{row.metricLabel}</td>
-                      <td>{row.expected}</td>
-                      <td>{row.observed}</td>
-                      <td>{String(row.before)}</td>
-                      <td>{String(row.after)}</td>
+              <div className="scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Metric</th>
+                      <th>Expected</th>
+                      <th>Observed</th>
+                      <th>Before</th>
+                      <th>After</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {perturbationResult.perturbation.actualOutcome?.comparisons?.map((row: any) => (
+                      <tr key={row.metric}>
+                        <td>{row.metricLabel}</td>
+                        <td>{row.expected}</td>
+                        <td>{row.observed}</td>
+                        <td>{String(row.before)}</td>
+                        <td>{String(row.after)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               <p className="hint">
                 {perturbationResult.perturbation.divergenceExplanation}
               </p>
@@ -387,7 +391,7 @@ export function Workspace() {
         <div className="card">
           <span className="badge">Interpretation</span>
           <LabelPill label={interpretation.label} rationale={interpretation.labelRationale} />
-          <div className="fields" style={{ marginTop: 16 }}>
+          <div className="fields mt-4">
             <div>
               <label htmlFor="obs">Observation</label>
               <p className="hint">Copilot: {interpretation.observation}</p>
@@ -430,7 +434,7 @@ export function Workspace() {
           <Caveats items={interpretation.caveats} />
           <EvidenceList sources={interpretation.evidence} />
 
-          <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+          <div className="row mt-4">
             <button onClick={saveInterpretation}>Save my interpretation</button>
             <button className="secondary" onClick={() => audit('accept')}>
               Accept the Copilot output
