@@ -919,10 +919,10 @@ pre {
   margin-inline: calc(-1 * var(--gutter));
   margin-top: calc(-1 * var(--space-6));
   margin-bottom: 0;
-  padding-block: 128px;
+  padding-block: var(--space-8);
   padding-inline: var(--gutter);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  min-height: 460px;
+  min-height: 420px;
 }
 /* A soft mint bloom, the reference's one piece of ornament. */
 .hero::after {
@@ -938,18 +938,19 @@ pre {
 .hero h2 {
   color: #fff;
   /* Scales with the viewport rather than stepping at one breakpoint. */
-  font-size: clamp(32px, 5.2vw, 72px);
-  line-height: 1.08;
-  letter-spacing: -0.035em;
+  font-size: clamp(30px, 4.4vw, 62px);
+  line-height: 1.1;
+  letter-spacing: -0.032em;
   font-weight: 800;
-  /* Even line lengths instead of a one-word last line. */
+  /* Wide enough for the headline to fall on two lines, with balance keeping
+     those two lines even rather than leaving a short widow. */
   text-wrap: balance;
-  max-width: 18ch;
+  max-width: 30ch;
   margin: 0 auto var(--space-4);
 }
 .hero .lede {
   color: var(--accent-bright);
-  max-width: 46ch;
+  max-width: 62ch;
   margin: 0 auto;
   font-size: clamp(15px, 1.5vw, 19px);
   line-height: 1.5;

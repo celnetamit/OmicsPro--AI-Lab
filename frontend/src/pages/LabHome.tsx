@@ -58,7 +58,7 @@ export function LabHome() {
         hero
         eyebrow={`Week ${home.currentWeek} of eight`}
         title="Single-cell and spatial transcriptomics, run for real"
-        lede="Every analysis you run here records its dataset, method versions, parameters and your own decisions — so the result can be reconstructed, defended and carried into your capstone."
+        lede="Every analysis records its dataset, method versions, parameters and your own decisions — so the result can be defended."
         actions={
           <>
             <Link className="button" to="/datasets">
