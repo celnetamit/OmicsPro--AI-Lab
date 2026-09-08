@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+*.db
+node_modules/
+frontend/dist/
+data/guided/
+data/fixtures/
+data/gene_sets/
+.env
+.pytest_cache/
+
+# Deployment
+.env
+docker/.env

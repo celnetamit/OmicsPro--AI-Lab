@@ -1,0 +1,70 @@
+# Deployment topology: Postgres, the API, and nginx serving the built front end
+# and proxying /api to the API. Coolify sets the environment variables named
+# below; a local run reads them from .env (copy .env.example).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-omicslab}
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"
+      POSTGRES_DB: ${POSTGRES_DB:-omicslab}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-omicslab} -d ${POSTGRES_DB:-omicslab}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        # Set true to include Scanpy, leidenalg and GSEApy. Without them the
+        # Core and Advanced pipelines fail with a message naming the missing
+        # method rather than substituting a different one.
+        INCLUDE_SCIENCE: ${INCLUDE_SCIENCE:-false}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      OMICSLAB_ENVIRONMENT: ${OMICSLAB_ENVIRONMENT:-production}
+      OMICSLAB_RELEASE: ${OMICSLAB_RELEASE:-dev}
+      OMICSLAB_DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-omicslab}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-omicslab}"
+      OMICSLAB_JWT_SECRET: "${OMICSLAB_JWT_SECRET:?generate one with openssl rand -hex 32}"
+      # nginx proxies /api from the same origin, so the browser makes no
+      # cross-origin request. This stays set for direct API clients only.
+      OMICSLAB_CORS_ORIGINS: ${OMICSLAB_CORS_ORIGINS:-http://localhost:8080}
+      OMICSLAB_DATA_DIR: /data
+      OMICSLAB_RUN_EXECUTION_MODE: background
+      OMICSLAB_RUN_WORKER_THREADS: ${OMICSLAB_RUN_WORKER_THREADS:-2}
+      OMICSLAB_LOG_JSON: ${OMICSLAB_LOG_JSON:-true}
+      # The run pool lives inside the process, so run capacity scales with
+      # worker threads, not with web workers. Keep this at 1 unless the pool
+      # has been moved to an external queue.
+      OMICSLAB_WEB_CONCURRENCY: 1
+    volumes:
+      - datasets:/data
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_RELEASE: ${OMICSLAB_RELEASE:-dev}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      API_UPSTREAM: http://api:8000
+      PORT: 8080
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+
+volumes:
+  db-data:
+  datasets:

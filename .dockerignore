@@ -1,0 +1,12 @@
+**/node_modules
+**/__pycache__
+**/*.pyc
+.venv/
+frontend/dist/
+.git/
+*.db
+.pytest_cache/
+.env
+data/guided/
+data/gene_sets/
+docs/

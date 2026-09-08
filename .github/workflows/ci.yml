@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: API tests and guardrails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+      - run: pip install -r backend/requirements.txt
+      - name: Naming rule and parameter registry guardrails
+        run: python scripts/lint_naming.py
+      - name: Tests
+        env:
+          PYTHONPATH: backend
+        run: python -m pytest backend/tests -q
+      - name: Migrations match the models
+        # A model change without a migration is a deployment that fails at boot.
+        working-directory: backend
+        env:
+          PYTHONPATH: .
+          OMICSLAB_DATABASE_URL: sqlite:///./ci-check.db
+        run: |
+          alembic upgrade head
+          alembic check
+
+  frontend:
+    name: Web build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run typecheck
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+
+  images:
+    name: Container images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: API image
+        run: docker build -f backend/Dockerfile -t omicslab-api:ci .
+      - name: Web image
+        run: docker build -f frontend/Dockerfile -t omicslab-web:ci .
+      - name: The API image refuses an unsafe production configuration
+        run: |
+          if docker run --rm -e OMICSLAB_ENVIRONMENT=production -e OMICSLAB_SKIP_MIGRATIONS=true \
+               omicslab-api:ci python -c "import app.main" 2>/dev/null; then
+            echo "The image started in production mode with the development signing key."
+            exit 1
+          fi
+          echo "Refused, as intended."

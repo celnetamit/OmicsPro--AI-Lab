@@ -1,0 +1,15 @@
+{
+  "name": "omicslab-pro",
+  "private": true,
+  "description": "Root task runner. The React app lives in frontend/; the API is Python and is started through the virtualenv.",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "dev:api": "PYTHONPATH=backend .venv/bin/uvicorn app.main:app --reload --port 8000",
+    "install:frontend": "npm --prefix frontend install",
+    "build": "npm --prefix frontend run build",
+    "typecheck": "npm --prefix frontend run typecheck",
+    "seed": "PYTHONPATH=backend .venv/bin/python scripts/seed.py",
+    "test": "PYTHONPATH=backend .venv/bin/python -m pytest backend/tests -q",
+    "lint": ".venv/bin/python scripts/lint_naming.py"
+  }
+}

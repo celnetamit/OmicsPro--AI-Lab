@@ -1,0 +1,221 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { get } from '../lib/api'
+import { EmptyState, HeroStats, PageHeader, SectionHead, Skeleton, StatusPill } from '../components/ui'
+import { TRACK_ICONS } from '../components/icons'
+import { useSession } from '../components/Session'
+import type { FeatureRow, RunSummary, WeekRow } from '../lib/types'
+
+interface Home {
+  currentWeek: number
+  accessTier: string
+  weeks: WeekRow[]
+  availableTracks: { track: string; label: string }[]
+  recentRuns: RunSummary[]
+  hasDesignPlan: boolean
+  lockedFeatures: FeatureRow[]
+}
+
+/** One line on what each track actually does, for the feature grid. */
+const TRACK_BLURB: Record<string, string> = {
+  foundation:
+    'Bulk RNA-seq: sample-aware differential expression and pathway interpretation on a real published design.',
+  core:
+    'Single-cell RNA-seq: quality control, integration, clustering and annotation, with every threshold recorded.',
+  advanced:
+    'Spatial transcriptomics: tissue-aware clustering and neighbourhood analysis, optionally mapped to a single-cell reference.',
+}
+
+const STATUS_TEXT: Record<string, string> = {
+  open: 'Open',
+  locked_until_week: 'Opens later in the program',
+  scheduled_for_later_release: 'Scheduled for a later release',
+}
+
+export function LabHome() {
+  const { matrix } = useSession()
+  const [home, setHome] = useState<Home | null>(null)
+
+  useEffect(() => {
+    void get<Home>('/api/program/home').then(setHome)
+  }, [])
+
+  if (!home) {
+    return (
+      <>
+        <PageHeader title="Lab Home" />
+        <Skeleton lines={4} />
+        <span className="visually-hidden" role="status">
+          Loading
+        </span>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <PageHeader
+        hero
+        eyebrow={`Week ${home.currentWeek} of eight`}
+        title="Single-cell and spatial transcriptomics, run for real"
+        lede="Every analysis you run here records its dataset, method versions, parameters and your own decisions — so the result can be reconstructed, defended and carried into your capstone."
+        actions={
+          <>
+            <Link className="button" to="/datasets">
+              Start an analysis
+            </Link>
+            <Link className="button secondary" to="/knowledge-bank">
+              Knowledge Bank
+            </Link>
+          </>
+        }
+      >
+        <HeroStats
+          items={[
+            { value: `${home.weeks.filter((w) => w.status === 'open').length}/8`, name: 'Modules open to you' },
+            { value: home.availableTracks.length, name: 'Analysis tracks' },
+            { value: home.recentRuns.length, name: 'Runs on record' },
+            { value: matrix?.currentTierLabel ?? '—', name: 'Access tier' },
+          ]}
+        />
+      </PageHeader>
+
+      <SectionHead title="Program progress" sub="Eight weeks, each opening its own Live Lab module." />
+      <div className="card">
+        <div className="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Week</th>
+                <th>Focus</th>
+                <th>Live Lab module</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {home.weeks.map((week) => (
+                <tr key={week.week}>
+                  <td>{week.week}</td>
+                  <td>{week.focus}</td>
+                  <td>{week.moduleLabel}</td>
+                  <td>{STATUS_TEXT[week.status] ?? week.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <SectionHead
+        title="Analysis tracks open to you"
+        sub="Track names describe the science being done. They are separate from your access tier, which describes what you may run and export."
+      />
+      <div className="grid">
+        {home.availableTracks.map((track) => (
+          <div className="card interactive" key={track.track}>
+            <span className="icon-tile">{TRACK_ICONS[track.track] ?? TRACK_ICONS.default}</span>
+            <h3>{track.label}</h3>
+            <p className="hint">{TRACK_BLURB[track.track] ?? ''}</p>
+            <Link className="arrow-link mt-4" to="/datasets">
+              Choose a dataset
+            </Link>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid-2 mt-5">
+        <div className="card">
+          <h3>Week 1 design plan</h3>
+          <p className="hint">
+            {home.hasDesignPlan
+              ? 'Your Experimental Design and Metadata Plan is saved to your portfolio.'
+              : 'You have not saved a design plan yet. The plan is where replication, batch structure and confounders get decided — before any data is touched.'}
+          </p>
+          <Link className="button secondary mt-4" to="/design-studio">
+            Open the Design Studio
+          </Link>
+        </div>
+
+        <div className="card">
+          <h3>Pre-Lab Assessment</h3>
+          <p className="hint">
+            Check what you already know before the guided walkthrough, so the Copilot's
+            explanations land where they are actually needed.
+          </p>
+          <Link className="button secondary mt-4" to="/pre-lab">
+            Take the assessment
+          </Link>
+        </div>
+      </div>
+
+      <SectionHead
+        title="Recent runs"
+        action={
+          <Link className="arrow-link" to="/runs">
+            View all runs
+          </Link>
+        }
+      />
+      <div className="card">
+        {home.recentRuns.length === 0 ? (
+          <EmptyState
+            title="No analyses run yet"
+            action={
+              <Link className="button secondary" to="/datasets">
+                Open the Dataset Selector
+              </Link>
+            }
+          >
+            Your runs will appear here with their status, track and pipeline version.
+          </EmptyState>
+        ) : (
+          <div className="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Run</th>
+                <th>Track</th>
+                <th>Status</th>
+                <th>Kind</th>
+              </tr>
+            </thead>
+            <tbody>
+              {home.recentRuns.map((run) => (
+                <tr key={run.id}>
+                  <td>
+                    <Link className="mono" to={`/runs/${run.id}`}>
+                      {run.id.slice(0, 8)}
+                    </Link>
+                  </td>
+                  <td>{run.track}</td>
+                  <td>
+                    <StatusPill status={run.status} />
+                  </td>
+                  <td>{run.isOriginal ? 'Original' : 'Alternate settings'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
+        )}
+      </div>
+
+      {home.lockedFeatures.length ? (
+        <div className="card locked mt-5">
+          <span className="badge">Not included at your access level</span>
+          <h3>Available with a paid upgrade</h3>
+          <ul>
+            {home.lockedFeatures.map((feature) => (
+              <li key={feature.key}>
+                <strong>{feature.label}</strong> — {feature.lockedExplanation}
+              </li>
+            ))}
+          </ul>
+          <Link className="button secondary" to="/upgrade">
+            Compare access options
+          </Link>
+        </div>
+      ) : null}
+    </>
+  )
+}
