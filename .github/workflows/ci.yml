@@ -70,10 +70,24 @@ jobs:
       - name: Web image
         run: docker build -f frontend/Dockerfile -t omicslab-web:ci .
       - name: The API image refuses an unsafe production configuration
+        # The container must exit, not hang: a service that neither serves nor
+        # dies is the failure mode an orchestrator cannot report. The timeout
+        # is the assertion — without the entrypoint's preflight this hangs.
         run: |
-          if docker run --rm -e OMICSLAB_ENVIRONMENT=production -e OMICSLAB_SKIP_MIGRATIONS=true \
-               omicslab-api:ci python -c "import app.main" 2>/dev/null; then
-            echo "The image started in production mode with the development signing key."
+          set +e
+          timeout 90 docker run --rm -e OMICSLAB_ENVIRONMENT=production \
+            -e OMICSLAB_SKIP_MIGRATIONS=true omicslab-api:ci > refusal.log 2>&1
+          code=$?
+          set -e
+          cat refusal.log
+          if [ "$code" = "0" ]; then
+            echo "::error::The image started in production mode with the development signing key."
             exit 1
           fi
-          echo "Refused, as intended."
+          if [ "$code" = "124" ]; then
+            echo "::error::The image hung instead of refusing an unusable configuration."
+            exit 1
+          fi
+          grep -q "OMICSLAB_JWT_SECRET" refusal.log || {
+            echo "::error::It exited, but not for the reason under test."; exit 1; }
+          echo "Refused immediately, as intended (exit $code)."

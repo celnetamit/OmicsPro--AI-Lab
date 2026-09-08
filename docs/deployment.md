@@ -15,7 +15,10 @@ Generate the signing key and the database password:
     openssl rand -hex 24      # POSTGRES_PASSWORD
 
 The API **refuses to start** in production with the development signing key, a
-key shorter than 32 characters, or a wildcard CORS origin. That is deliberate:
+key shorter than 32 characters, or a wildcard CORS origin. The container exits
+immediately with the reason on stderr rather than lingering: uvicorn's worker
+supervisor will otherwise sit there serving nothing and never exiting, which
+shows up as a service that is neither healthy nor crash-looping. That is deliberate:
 a JWT signed with a key that ships in the repository is forgeable by anyone who
 can read the source.
 

@@ -4,6 +4,18 @@
 # for; Alembic is idempotent, so a restart is safe.
 set -e
 
+# Fail fast on an unusable configuration.
+#
+# uvicorn's multi-worker supervisor does not exit when the application cannot
+# be imported: it sits there, serving nothing and never dying, which is the
+# worst thing a container can do because the orchestrator sees neither a
+# healthy service nor a crash loop. Importing the settings here turns that into
+# an immediate, readable exit.
+if ! python -c "from app.settings import settings" ; then
+  echo "Configuration is not usable; refusing to start. See the error above." >&2
+  exit 1
+fi
+
 if [ "${OMICSLAB_SKIP_MIGRATIONS:-false}" != "true" ]; then
   echo "running database migrations"
   alembic upgrade head
