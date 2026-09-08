@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { get } from '../lib/api'
-import { Band, EmptyState, HeroStats, PageHeader, SectionHead, Skeleton, StatusPill } from '../components/ui'
+import { Band, EmptyState, PageHeader, SectionHead, Skeleton, StatusPill } from '../components/ui'
 import { TRACK_ICONS } from '../components/icons'
 import { useSession } from '../components/Session'
 import type { FeatureRow, RunSummary, WeekRow } from '../lib/types'
@@ -15,6 +15,9 @@ interface Home {
   hasDesignPlan: boolean
   lockedFeatures: FeatureRow[]
 }
+
+/** The tier enum, as a word: 'moderate' -> 'Moderate'. */
+const TIER_WORD = (tier: string) => tier.charAt(0).toUpperCase() + tier.slice(1)
 
 /** One line on what each track actually does, for the feature grid. */
 const TRACK_BLURB: Record<string, string> = {
@@ -56,29 +59,44 @@ export function LabHome() {
     <>
       <PageHeader
         hero
-        eyebrow={`Week ${home.currentWeek} of eight`}
         title="Single-cell and spatial transcriptomics, run for real"
-        lede="Every analysis records its dataset, method versions, parameters and your own decisions — so the result can be defended."
-        actions={
-          <>
+        lede="Analysis you can reconstruct, defend and carry into your capstone."
+      />
+
+      <Band>
+        <div className="lede-row">
+          <div>
+            <span className="tag">Week {home.currentWeek} of eight</span>
+            <h3 className="mt-4">Where you are</h3>
+          </div>
+          <div className="row">
             <Link className="button" to="/datasets">
               Start an analysis
             </Link>
             <Link className="button secondary" to="/knowledge-bank">
               Knowledge Bank
             </Link>
-          </>
-        }
-      >
-        <HeroStats
-          items={[
-            { value: `${home.weeks.filter((w) => w.status === 'open').length}/8`, name: 'Modules open to you' },
-            { value: home.availableTracks.length, name: 'Analysis tracks' },
-            { value: home.recentRuns.length, name: 'Runs on record' },
-            { value: matrix?.currentTierLabel ?? '—', name: 'Access tier' },
-          ]}
-        />
-      </PageHeader>
+          </div>
+        </div>
+        <div className="metrics mt-5">
+          <div className="metric">
+            <div className="value">{home.weeks.filter((w) => w.status === 'open').length}/8</div>
+            <div className="name">Modules open to you</div>
+          </div>
+          <div className="metric">
+            <div className="value">{home.availableTracks.length}</div>
+            <div className="name">Analysis tracks</div>
+          </div>
+          <div className="metric">
+            <div className="value">{home.recentRuns.length}</div>
+            <div className="name">Runs on record</div>
+          </div>
+          <div className="metric">
+            <div className="value">{matrix?.currentTierLabel ?? '—'}</div>
+            <div className="name">Access tier</div>
+          </div>
+        </div>
+      </Band>
 
       <Band tint>
         <SectionHead
@@ -227,7 +245,7 @@ export function LabHome() {
           <div className="grid">
             {home.lockedFeatures.map((feature) => (
               <div className="card" key={feature.key}>
-                <span className="tag neutral">{feature.minTier} access</span>
+                <span className="tag neutral">{TIER_WORD(feature.minTier)} access</span>
                 <h3 className="mt-4">{feature.label}</h3>
                 <p className="hint">{feature.lockedExplanation}</p>
               </div>

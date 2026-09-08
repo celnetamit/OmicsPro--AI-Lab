@@ -919,10 +919,10 @@ pre {
   margin-inline: calc(-1 * var(--gutter));
   margin-top: calc(-1 * var(--space-6));
   margin-bottom: 0;
-  padding-block: var(--space-8);
+  padding-block: 128px;
   padding-inline: var(--gutter);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  min-height: 420px;
+  min-height: 644px;
 }
 /* A soft mint bloom, the reference's one piece of ornament. */
 .hero::after {
@@ -938,10 +938,10 @@ pre {
 .hero h2 {
   color: #fff;
   /* Scales with the viewport rather than stepping at one breakpoint. */
-  font-size: clamp(30px, 4.4vw, 62px);
+  font-size: clamp(32px, 5vw, 72px);
   line-height: 1.1;
   letter-spacing: -0.032em;
-  font-weight: 800;
+  font-weight: 700;
   /* Wide enough for the headline to fall on two lines, with balance keeping
      those two lines even rather than leaving a short widow. */
   text-wrap: balance;
@@ -949,11 +949,11 @@ pre {
   margin: 0 auto var(--space-4);
 }
 .hero .lede {
-  color: var(--accent-bright);
-  max-width: 62ch;
-  margin: 0 auto;
-  font-size: clamp(15px, 1.5vw, 19px);
-  line-height: 1.5;
+  color: rgba(106, 241, 212, .9);
+  max-width: 44ch;
+  margin: var(--space-2) auto 0;
+  font-size: clamp(16px, 1.9vw, 24px);
+  line-height: 1.45;
   text-wrap: balance;
 }
 .hero .row { align-items: center; justify-content: center; margin-top: var(--space-6); }
@@ -1015,6 +1015,13 @@ pre {
 
 /* Centred variant, as the reference uses on its first section. */
 .section-head.centred { flex-direction: column; align-items: center; text-align: center; }
+
+/* A heading paired with its actions on the right, above a figures row. */
+.lede-row {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--space-4); flex-wrap: wrap;
+}
+.lede-row h3 { margin: 0; font-size: 26px; letter-spacing: -0.022em; }
 .section-head.centred .sub { margin-inline: auto; }
 
 @media (max-width: 1080px) {
@@ -1072,4 +1079,3 @@ pre {
   color: var(--accent);
 }
 .tag.neutral { background: var(--surface-sunken); color: var(--muted); }
-.tag { text-transform: capitalize; }
