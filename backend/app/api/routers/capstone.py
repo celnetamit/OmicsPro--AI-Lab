@@ -21,6 +21,7 @@ from app.copilot import evidence
 from app.db import get_db
 from app.models import (
     AiInteraction,
+    AssessmentResult,
     AuditRecord,
     Capstone,
     Dataset,
@@ -179,6 +180,8 @@ def _serialise(capstone: Capstone) -> dict:
         "limitations": capstone.limitations,
         "futureWork": capstone.future_work,
         "submittedAt": capstone.submitted_at.isoformat() if capstone.submitted_at else None,
+        "defenceScore": capstone.defence_score,
+        "defenceBreakdown": capstone.defence_breakdown or {},
         "updatedAt": capstone.updated_at.isoformat(),
     }
 
@@ -348,24 +351,23 @@ def deck(user: User = Depends(current_user), db: Session = Depends(get_db)) -> d
     slides = [
         {"slide": 1, "title": capstone.title or "Capstone", "type": "title",
          "body": {"researchQuestion": capstone.research_question}},
-        {"slide": 2, "title": "Study design", "type": "design",
+        {"slide": 2, "title": "Design and data", "type": "design",
          "body": {
              "chosenAssay": plan.chosen_assay if plan else None,
              "justification": plan.assay_justification if plan else "",
              "designWarnings": plan.design_warnings if plan else [],
+             "datasets": [
+                 {
+                     "name": dataset.name,
+                     "accession": dataset.accession,
+                     "source": dataset.source,
+                     "license": dataset.license,
+                 }
+                 for dataset in datasets
+                 if dataset
+             ],
          }},
-        {"slide": 3, "title": "Data and provenance", "type": "provenance",
-         "body": [
-             {
-                 "name": dataset.name,
-                 "accession": dataset.accession,
-                 "source": dataset.source,
-                 "license": dataset.license,
-             }
-             for dataset in datasets
-             if dataset
-         ]},
-        {"slide": 4, "title": "Methods and versions", "type": "methods",
+        {"slide": 3, "title": "Methods and versions", "type": "methods",
          "body": [
              {
                  "runId": run.id,
@@ -376,8 +378,8 @@ def deck(user: User = Depends(current_user), db: Session = Depends(get_db)) -> d
              }
              for run in runs
          ]},
-        {"slide": 5, "title": "Results", "type": "figures", "body": pack["panels"]},
-        {"slide": 6, "title": "Interpretation", "type": "interpretation",
+        {"slide": 4, "title": "Results", "type": "figures", "body": pack["panels"]},
+        {"slide": 5, "title": "Interpretation", "type": "interpretation",
          "body": [
              {
                  "step": row.step,
@@ -389,7 +391,7 @@ def deck(user: User = Depends(current_user), db: Session = Depends(get_db)) -> d
              }
              for row in interpretations
          ]},
-        {"slide": 7, "title": "Robustness", "type": "perturbations",
+        {"slide": 6, "title": "Robustness", "type": "perturbations",
          "body": [
              {
                  "parameterKey": row.parameter_key,
@@ -401,18 +403,246 @@ def deck(user: User = Depends(current_user), db: Session = Depends(get_db)) -> d
              }
              for row in perturbations
          ]},
-        {"slide": 8, "title": "AI audit", "type": "audit",
+        {"slide": 7, "title": "AI audit", "type": "audit",
          "body": {"rows": audit_rows, "unreviewed": len(unreviewed)}},
-        {"slide": 9, "title": "Limitations", "type": "limitations",
-         "body": sorted(limitations)},
-        {"slide": 10, "title": "What I would do next", "type": "future",
-         "body": capstone.future_work},
-        {"slide": 11, "title": "References", "type": "references",
-         "body": evidence.resolve(sorted(source_ids))},
+        {"slide": 8, "title": "Limitations, next steps and references", "type": "closing",
+         "body": {
+             "limitations": sorted(limitations),
+             "nextSteps": capstone.future_work,
+             "references": evidence.resolve(sorted(source_ids)),
+         }},
     ]
 
     readiness = _readiness(capstone, runs, interpretations, unreviewed)
-    return {"slides": slides, "readiness": readiness}
+    #: Spec 13 asks for a five-to-eight slide defence deck; the count is
+    #: asserted here so a future slide cannot quietly push it out of range.
+    assert 5 <= len(slides) <= 8, f"deck must be 5-8 slides, built {len(slides)}"
+    return {"slides": slides, "slideCount": len(slides), "readiness": readiness}
+
+
+#: A printed page of this memo's layout holds roughly this many words. Used to
+#: report length honestly rather than claiming "2 pages" without checking.
+WORDS_PER_PAGE = 500
+
+
+def _words(*parts) -> int:
+    total = 0
+    for part in parts:
+        if isinstance(part, str):
+            total += len(part.split())
+        elif isinstance(part, (list, tuple)):
+            total += _words(*part)
+        elif isinstance(part, dict):
+            total += _words(*part.values())
+    return total
+
+
+@router.get("/memo")
+def memo(user: User = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    """The two-page biotech/research memo (spec 13).
+
+    Assembled from recorded work only, on the same rule as the deck: the
+    findings are the learner's own biological interpretations, each carried with
+    the label it was given and the run and step that produced it. The platform
+    does not write the science; it lays out what was recorded and states what
+    the record does not support.
+    """
+    capstone = _capstone_for(db, user)
+    runs = _owned_runs(db, user, capstone.run_ids)
+    plan = db.scalar(select(DesignPlan).where(DesignPlan.user_id == user.id))
+
+    interpretations: List[Interpretation] = []
+    for run in runs:
+        interpretations.extend(
+            db.scalars(select(Interpretation).where(Interpretation.run_id == run.id)).all()
+        )
+
+    perturbations: List[Perturbation] = []
+    for run in runs:
+        perturbations.extend(
+            db.scalars(select(Perturbation).where(Perturbation.run_id == run.id)).all()
+        )
+
+    datasets = [db.get(Dataset, run.dataset_id) for run in runs]
+    source_ids, limitations = set(), set()
+    for dataset in datasets:
+        if dataset:
+            limitations.update(dataset.limitations or [])
+    for run in runs:
+        for namespace in (run.outputs or {}).values():
+            if isinstance(namespace, dict) and namespace.get("caveat"):
+                limitations.add(namespace["caveat"])
+    for row in interpretations:
+        interaction = db.scalar(
+            select(AiInteraction).where(
+                AiInteraction.run_id.in_([r.id for r in runs] or [""]),
+                AiInteraction.step == row.step,
+            )
+        )
+        if interaction and interaction.evidence_source_ids:
+            source_ids.update(interaction.evidence_source_ids)
+
+    findings = [
+        {
+            "step": row.step,
+            "claim": row.biological_interpretation,
+            "observation": row.observation,
+            "statisticalEvidence": row.statistical_evidence,
+            "hypothesis": row.hypothesis,
+            "label": row.label,
+        }
+        for row in interpretations
+        if row.biological_interpretation.strip()
+    ]
+
+    sections = {
+        "question": capstone.research_question,
+        "decision": plan.decision_goal if plan else "",
+        "approach": {
+            "narrative": capstone.approach,
+            "chosenAssay": plan.chosen_assay if plan else None,
+            "justification": plan.assay_justification if plan else "",
+            "datasets": [
+                {"name": d.name, "accession": d.accession, "source": d.source, "license": d.license}
+                for d in datasets
+                if d
+            ],
+            "methods": [
+                {
+                    "track": run.track,
+                    "pipelineVersion": run.pipeline_version,
+                    "methodVersions": run.method_versions,
+                }
+                for run in runs
+            ],
+        },
+        "findings": findings,
+        "robustness": [
+            {
+                "parameterKey": row.parameter_key,
+                "from": row.from_value.get("value"),
+                "to": row.to_value.get("value"),
+                "decision": row.decision,
+                "matchedExpectation": row.matched_expectation,
+            }
+            for row in perturbations
+        ],
+        "limitations": sorted(limitations) + list(capstone.limitations or []),
+        "nextSteps": capstone.future_work,
+        "references": evidence.resolve(sorted(source_ids)),
+    }
+
+    words = _words(sections)
+    pages = max(1, round(words / WORDS_PER_PAGE)) if words else 0
+
+    missing = []
+    if not sections["question"].strip():
+        missing.append("the research question")
+    if not findings:
+        missing.append("at least one biological interpretation")
+    if not sections["limitations"]:
+        missing.append("the limitations")
+
+    return {
+        "title": capstone.title or "Capstone memo",
+        "sections": sections,
+        "estimatedWords": words,
+        "estimatedPages": pages,
+        "withinTwoPages": pages <= 2,
+        "missing": missing,
+        "note": (
+            "Every claim here is one you recorded against a run, carried with the "
+            "label you gave it. The memo states length as measured, not as "
+            "promised: a memo longer than two pages needs cutting by you, because "
+            "the platform will not decide which of your findings to drop."
+        ),
+    }
+
+
+def _defence_score(capstone, runs, interpretations, perturbations, audit_rows, week_scores) -> dict:
+    """The final defence score (spec 13).
+
+    Every part is read from the record and says what it counted. None of it
+    judges whether the science is correct — the platform cannot know that — so
+    the score measures whether the work is defensible: complete, adjudicated,
+    tested for robustness and stated with its limits.
+    """
+    parts = []
+
+    complete = [
+        row
+        for row in interpretations
+        if all(
+            getattr(row, name).strip()
+            for name in ("observation", "statistical_evidence", "biological_interpretation", "hypothesis")
+        )
+    ]
+    parts.append({
+        "key": "interpretation",
+        "label": "Interpretations complete",
+        "measures": "Interpretations that separate all four fields.",
+        "score": (len(complete) / len(interpretations)) if interpretations else None,
+        "counted": len(complete),
+        "total": len(interpretations),
+    })
+
+    adjudicated = [row for row in audit_rows if row["learnerAction"] != "not_reviewed"]
+    parts.append({
+        "key": "audit",
+        "label": "Copilot output adjudicated",
+        "measures": "AI outputs you accepted, modified, rejected or flagged.",
+        "score": (len(adjudicated) / len(audit_rows)) if audit_rows else None,
+        "counted": len(adjudicated),
+        "total": len(audit_rows),
+    })
+
+    reconciled = [row for row in perturbations if row.actual_outcome]
+    parts.append({
+        "key": "robustness",
+        "label": "Robustness tested",
+        "measures": "What-if tests whose alternate run produced a comparison.",
+        "score": (len(reconciled) / len(perturbations)) if perturbations else None,
+        "counted": len(reconciled),
+        "total": len(perturbations),
+    })
+
+    stated = len(capstone.limitations or [])
+    parts.append({
+        "key": "limits",
+        "label": "Limitations stated",
+        "measures": "Limitations you wrote in your own words.",
+        "score": 1.0 if stated else 0.0,
+        "counted": stated,
+        "total": 1,
+    })
+
+    if week_scores:
+        parts.append({
+            "key": "weeks",
+            "label": "Week assessments",
+            "measures": "Mean of the week assessments you have taken.",
+            "score": sum(week_scores) / len(week_scores),
+            "counted": len(week_scores),
+            "total": len(week_scores),
+        })
+
+    scored = [p for p in parts if p["score"] is not None]
+    overall = sum(p["score"] for p in scored) / len(scored) if scored else None
+    for part in parts:
+        if part["score"] is not None:
+            part["score"] = round(part["score"], 2)
+
+    return {
+        "score": round(overall, 2) if overall is not None else None,
+        "parts": parts,
+        "pending": [p["label"] for p in parts if p["score"] is None],
+        "note": (
+            "This measures whether the work is defensible — complete, "
+            "adjudicated, tested and stated with its limits. It is not a "
+            "judgement of whether your biology is right; the platform cannot "
+            "know that, and an SME review is where that belongs."
+        ),
+    }
 
 
 def _readiness(capstone, runs, interpretations, unreviewed) -> dict:
@@ -467,6 +697,49 @@ def submit(user: User = Depends(current_user), db: Session = Depends(get_db)) ->
     readiness = _readiness(capstone, runs, interpretations, [])
     if not readiness["ready"]:
         raise HTTPException(422, {"error": "capstone_incomplete", **readiness})
+
+    #: The defence score is computed once, at submission, from the record as it
+    #: stood — so it stays true to what was defended rather than drifting with
+    #: later edits.
+    perturbations: List[Perturbation] = []
+    for run in runs:
+        perturbations.extend(
+            db.scalars(select(Perturbation).where(Perturbation.run_id == run.id)).all()
+        )
+    audit_rows = []
+    audits = {
+        a.interaction_id: a
+        for a in db.scalars(select(AuditRecord).where(AuditRecord.user_id == user.id)).all()
+    }
+    for run in runs:
+        for interaction in db.scalars(
+            select(AiInteraction).where(AiInteraction.run_id == run.id)
+        ).all():
+            audit_rows.append(
+                {
+                    "step": interaction.step,
+                    "learnerAction": (
+                        audits[interaction.id].action
+                        if interaction.id in audits
+                        else "not_reviewed"
+                    ),
+                }
+            )
+    week_scores = [
+        row.score
+        for row in db.scalars(
+            select(AssessmentResult).where(
+                AssessmentResult.user_id == user.id,
+                AssessmentResult.assessment_id.like("week-%"),
+            )
+        ).all()
+    ]
+    breakdown = _defence_score(
+        capstone, runs, interpretations, perturbations, audit_rows, week_scores
+    )
+
     capstone.submitted_at = datetime.utcnow()
+    capstone.defence_score = breakdown["score"]
+    capstone.defence_breakdown = breakdown
     db.commit()
-    return _serialise(capstone)
+    return {**_serialise(capstone), "defence": breakdown}

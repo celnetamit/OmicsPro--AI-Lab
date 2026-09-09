@@ -54,6 +54,26 @@ def get_module(module: str) -> dict:
     return entry
 
 
+def publishes_for(track: AnalysisTrack) -> Dict[str, str]:
+    """Map every step key on a track to the outputs namespace it writes.
+
+    A step is identified by its key, but its result is stored under the name it
+    publishes, and the two are not the same word ('cell_qc' publishes 'qc').
+    A client that wants to know whether a step has produced a result needs this
+    mapping; without it, it can only compare the two namespaces and be wrong.
+
+    Covers the track's own pipeline and the extension modules that run on it, so
+    a caller listing a track's steps can resolve all of them.
+    """
+    mapping: Dict[str, str] = {}
+    pipelines = [PIPELINES[track]]
+    pipelines += [m["pipeline"] for m in MODULES.values() if m["track"] is track]
+    for pipeline in pipelines:
+        for step in pipeline.steps:
+            mapping[step.key] = step.publishes
+    return mapping
+
+
 def available_tracks() -> List[AnalysisTrack]:
     return [t for t, phase in TRACK_PHASE.items() if phase <= ACTIVE_PHASE]
 

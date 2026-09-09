@@ -151,8 +151,17 @@ export function Layout() {
       <footer className="site-foot">
         <div className="inner">
           <span>
-            OmicsLab Pro — the Live Lab for NanoSchool's eight-week single-cell and
-            spatial transcriptomics program.
+            OmicsLab Pro — a{' '}
+            <a
+              className="tip"
+              href="https://live-labs.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-tip="live-labs.org — opens in a new tab"
+            >
+              Live Lab
+            </a>{' '}
+            for NanoSchool's eight-week single-cell and spatial transcriptomics program.
           </span>
           <span className="release-stamp">
             {openAccess ? 'Open lab session · ' : ''}Release {RELEASE}

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import current_user, require_feature
 from app.constants import AnalysisTrack, AuditAction, InterpretationLabel
 from app.copilot import evidence, knowledge, service
+from app.pipelines import registry
 from app.copilot.grounding import UngroundedOutputError
 from app.db import get_db
 from app.models import AiInteraction, AuditRecord, Run, User
@@ -46,9 +47,14 @@ def _guard(call):
 
 @router.get("/steps/{track}")
 def steps(track: AnalysisTrack) -> list:
+    #: A step's key and the name it publishes its result under are different
+    #: words, so the client is told both. Comparing a step key against a run's
+    #: outputs directly reports almost every completed step as not run.
+    publishes = registry.publishes_for(track)
     return [
         {
             "step": entry.step,
+            "publishes": publishes.get(entry.step),
             "title": entry.title,
             "purpose": entry.purpose,
             "whatToObserve": entry.what_to_observe,

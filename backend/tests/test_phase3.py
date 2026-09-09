@@ -386,11 +386,17 @@ def test_the_deck_reports_what_is_missing_and_refuses_a_thin_submission(
     client.put("/api/capstone", headers=expert_auth, json={"run_ids": [run.id]})
 
     deck = client.get("/api/capstone/deck", headers=expert_auth).json()
+    #: Spec 13 asks for a five-to-eight slide defence deck.
+    assert 5 <= len(deck["slides"]) <= 8
+    assert deck["slideCount"] == len(deck["slides"])
     assert [slide["title"] for slide in deck["slides"]][:3] == [
         "Capstone",
-        "Study design",
-        "Data and provenance",
+        "Design and data",
+        "Methods and versions",
     ]
+    #: Merging design with provenance must not drop the provenance itself.
+    design = deck["slides"][1]["body"]
+    assert "datasets" in design
     assert deck["readiness"]["ready"] is False
     assert any("research question" in gap for gap in deck["readiness"]["gaps"])
     assert "not an assessment" in deck["readiness"]["note"]

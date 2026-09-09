@@ -37,6 +37,8 @@ interface Interpretation {
 
 interface StepInfo {
   step: string
+  /** The outputs key this step writes to; not the same word as its key. */
+  publishes: string | null
   title: string
 }
 
@@ -236,24 +238,39 @@ export function Workspace() {
         </div>
       ) : null}
 
-      <div className="steps">
-        {steps.map((info) => (
-          <button
-            key={info.step}
-            className={
-              info.step === step
-                ? 'active'
-                : outputs[info.step] || run.lastValidStep === info.step
-                  ? 'done'
-                  : ''
-            }
-            onClick={() => setStep(info.step)}
-          >
-            {info.title}
-          </button>
-        ))}
-      </div>
+      <nav className="steps" aria-label="Pipeline steps">
+        <div className="steps-head">
+          <span className="steps-count">
+            {steps.filter((s) => s.publishes && outputs[s.publishes]).length} of{' '}
+            {steps.length} steps computed
+          </span>
+          {working ? <span className="small muted">still running</span> : null}
+        </div>
+        <ol>
+          {steps.map((info, index) => {
+            //: A step is computed when the name it publishes under is present
+            //: in the run's outputs — its own key is a different word.
+            const done = Boolean(info.publishes && outputs[info.publishes])
+            const current = info.step === step
+            return (
+              <li key={info.step}>
+                <button
+                  className={`step${current ? ' active' : ''}${done ? ' done' : ''}`}
+                  aria-current={current ? 'step' : undefined}
+                  onClick={() => setStep(info.step)}
+                >
+                  <span className="step-n" aria-hidden="true">
+                    {done ? '✓' : index + 1}
+                  </span>
+                  <span className="step-t">{info.title}</span>
+                </button>
+              </li>
+            )
+          })}
+        </ol>
+      </nav>
 
+      <div className="reading">
       {error ? <ErrorNote message={error} requestId={errorRef} /> : null}
 
       {explanation ? (
@@ -455,6 +472,7 @@ export function Workspace() {
           </p>
         </div>
       ) : null}
+      </div>
     </>
   )
 }

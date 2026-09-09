@@ -338,6 +338,10 @@ class Capstone(Base):
     limitations: Mapped[list] = mapped_column(JSON, default=list)
     future_work: Mapped[str] = mapped_column(Text, default="")
     submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    #: Final defence score, computed from the record at submission (spec 13).
+    #: Null until submitted; the breakdown states what each part measured.
+    defence_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    defence_breakdown: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 

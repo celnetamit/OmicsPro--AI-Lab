@@ -516,6 +516,35 @@ main { width: 100%; min-width: 0; flex: 1; }
   margin-bottom: var(--space-4);
   box-shadow: var(--shadow);
 }
+/* A column for screens that are read and written rather than scanned. The
+   workspace is prose, evidence and free-text fields; spread across the full
+   dashboard width its lines become unreadable and its cards mostly empty. */
+.reading { max-width: 740px; }
+.reading .card :is(p, li) { max-width: none; }
+
+/* A whole screen the tier does not carry. Constrained, so it reads as a
+   deliberate state rather than a notice stranded in an empty column. */
+.locked-state {
+  max-width: 660px;
+  background: var(--locked-bg);
+  border: 1px solid var(--locked-line);
+  border-radius: var(--radius);
+  padding: var(--space-6);
+}
+.locked-state h3 { margin: var(--space-3) 0 var(--space-2); font-size: 20px; }
+.locked-state > p { color: var(--ink-soft); max-width: 62ch; }
+.locked-state .also {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--locked-line);
+}
+.locked-state .also-title {
+  font-size: 11.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--locked); margin-bottom: var(--space-2);
+}
+.locked-state ul { margin: 0; padding-left: var(--space-4); color: var(--ink-soft); font-size: 14px; }
+.locked-state li { margin-bottom: var(--space-1); }
+
 /* A lone form or picker on the full-width column: cap it at a comfortable
    reading and control width rather than letting it stretch to 1400px. Sizing
    it with a grid track instead would clip the controls inside it. */
@@ -539,6 +568,10 @@ main { width: 100%; min-width: 0; flex: 1; }
 .grid > .card { max-width: 640px; }
 .grid-2 { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
 .grid > *, .grid-2 > * { min-width: 0; }
+/* A layout container carries no bottom margin of its own, so two of them in a
+   row — or one followed by a field — sat flush. */
+:is(.grid, .grid-2, .metrics):not(:last-child) { margin-bottom: var(--space-4); }
+
 .grid { align-items: stretch; }
 .grid-2 { align-items: start; }
 /* A card in a feature row fills its track, so the row reads as one band. */
@@ -554,6 +587,14 @@ main { width: 100%; min-width: 0; flex: 1; }
 }
 .locked .badge { color: var(--locked); border-color: var(--locked-line); }
 .locked h3 { color: var(--ink); }
+
+/* The content column is as wide as the reference layout's, which suits card
+   grids and tables but not running text or a lone control. Prose and inputs
+   stop at a readable measure; anything genuinely tabular is unaffected. */
+.card :is(p, li, label) { max-width: 78ch; }
+/* A caveat or note is prose wherever it sits, including outside a card. */
+.caveat, .note { max-width: 96ch; }
+.card :is(input, select, textarea) { max-width: 42rem; }
 
 /* Definition-style key/value readouts, used for provenance and parameters. */
 .kv { display: grid; grid-template-columns: minmax(120px, max-content) minmax(0, 1fr); gap: var(--space-2) var(--space-4); font-size: 14px; margin: 0; }
@@ -572,6 +613,13 @@ main { width: 100%; min-width: 0; flex: 1; }
 .metric .name { font-size: 12px; color: var(--muted); }
 
 /* ---------------------------------------------------------------- badges -- */
+/* Pills are objects, not blocks. Inside a flex-column card the default
+   align-items:stretch was pulling them to the full card width. */
+.badge, .tag, .status, .label-pill, .tier-chip, .hero-eyebrow {
+  align-self: flex-start;
+  max-width: 100%;
+}
+
 .badge {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; font-weight: 650;
@@ -586,6 +634,9 @@ main { width: 100%; min-width: 0; flex: 1; }
 .badge.warn { color: var(--warn); }
 .badge.danger { color: var(--danger); }
 .badge.info { color: var(--info); }
+
+/* A badge introduces whatever follows it, heading or not. */
+:is(.badge, .tag) + * { margin-top: var(--space-3); }
 
 /* Run status. The colour is doubled by the wording, never carried by it alone. */
 .status {
@@ -658,6 +709,7 @@ button:disabled, .button[aria-disabled='true'] { opacity: .5; cursor: not-allowe
 
 /* ----------------------------------------------------------------- forms -- */
 label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 var(--space-1); color: var(--ink-soft); }
+:is(input, select, textarea) + label { margin-top: var(--space-4); }
 .field { margin-bottom: var(--space-4); }
 .field:last-child { margin-bottom: 0; }
 
@@ -685,6 +737,11 @@ input[type='checkbox'], input[type='radio'] { width: auto; margin-right: var(--s
 
 .fields { display: grid; gap: var(--space-4); }
 .hint { font-size: 12.5px; color: var(--muted); margin: var(--space-1) 0 0; }
+/* A hint or a caveat is written as a trailing annotation and so sets only a top
+   margin. When something does follow one, the gap has to come from somewhere,
+   or the two sit flush against each other. */
+.hint:not(:last-child),
+.caveat:not(:last-child) { margin-bottom: var(--space-4); }
 .field-error { font-size: 12.5px; color: var(--danger); margin: var(--space-1) 0 0; font-weight: 550; }
 
 fieldset { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--space-4); margin: 0 0 var(--space-4); }
@@ -760,18 +817,74 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .mono { font-family: var(--font-mono); font-size: 12.5px; }
 
 /* ------------------------------------------------------------ step rail -- */
-.steps { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-5); }
-.steps button {
-  background: var(--surface); color: var(--ink-soft); border-color: var(--line-strong);
-  font-size: 13px; padding: 6px 12px; font-weight: 550;
-  /* Step titles are sentences, not words: let them wrap on a narrow screen. */
+/* A pipeline is a sequence, so the rail is numbered and its states are
+   distinct: computed, the one being read, and not yet computed. Thirteen full
+   labels as equal-weight buttons read as a wall rather than a progression. */
+.steps { margin-bottom: var(--space-5); }
+
+.steps-head {
+  display: flex; align-items: baseline; gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.steps-count {
+  font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .07em;
+  color: var(--muted);
+}
+
+.steps ol {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: var(--space-2);
+}
+
+.steps button.step {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 12px 5px 6px;
+  font-size: 13px; font-weight: 500;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
   white-space: normal;
   text-align: left;
 }
-.steps button:hover:not(:disabled) { background: var(--surface-sunken); color: var(--ink); border-color: var(--muted-soft); }
-.steps button.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-.steps button.done { border-color: var(--ok-line); color: var(--ok); background: var(--ok-bg); }
-.steps button.done.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.steps button.step:hover:not(:disabled) {
+  border-color: var(--line-strong); color: var(--ink); background: var(--surface);
+}
+
+/* The number, or a tick once the step has produced output. */
+.step-n {
+  flex: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-sunken);
+  color: var(--muted-soft);
+  border: 1px solid var(--line);
+}
+
+/* Computed: the step has a result to read. */
+.steps button.step.done { color: var(--ink-soft); border-color: var(--ok-line); }
+.steps button.step.done .step-n {
+  background: var(--ok-bg); color: var(--ok); border-color: var(--ok-line);
+}
+
+/* The step being read now. */
+.steps button.step.active {
+  background: var(--accent); color: var(--on-accent); border-color: var(--accent);
+  font-weight: 600;
+}
+.steps button.step.active .step-n {
+  background: rgba(255, 255, 255, .22); color: var(--on-accent);
+  border-color: transparent;
+}
+
+@media (max-width: 720px) {
+  .steps ol { gap: 6px; }
+  .steps button.step { font-size: 12.5px; padding: 4px 10px 4px 5px; }
+}
 
 /* ---------------------------------------------------------------- modals -- */
 .modal-backdrop {
@@ -872,6 +985,73 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .toast.error { border-left-color: var(--danger); }
 .toast.success { border-left-color: var(--ok); }
 @keyframes rise { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ------------------------------------------------------------- hover tip -- */
+/* A link that names its destination on hover, so the reader knows where it
+   goes before they commit to it. Driven by data-tip, and shown on keyboard
+   focus as well as hover — a tip only a mouse can reach is not a tip for
+   everyone. */
+.tip {
+  position: relative;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  transform: translateX(-50%) translateY(3px);
+  z-index: 70;
+
+  background: var(--rail);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  padding: 7px 11px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .14s ease, transform .14s ease;
+}
+/* The little pointer under the bubble. */
+.tip::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%) translateY(3px);
+  z-index: 70;
+  border: 6px solid transparent;
+  border-top-color: var(--rail);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .14s ease, transform .14s ease;
+}
+.tip:hover::after, .tip:focus-visible::after,
+.tip:hover::before, .tip:focus-visible::before {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Near the viewport edge the bubble would be clipped, so on a narrow screen it
+   anchors to the link's left edge instead of its centre. */
+@media (max-width: 620px) {
+  .tip::after {
+    left: 0;
+    transform: translateX(0) translateY(3px);
+    white-space: normal;
+    width: max-content;
+    max-width: min(70vw, 280px);
+  }
+  .tip:hover::after, .tip:focus-visible::after { transform: translateX(0) translateY(0); }
+}
 
 /* --------------------------------------------------------------- utility -- */
 .muted { color: var(--muted); }

@@ -29,7 +29,7 @@ module can be declared before it is routable.
 | Custom contrasts | done | `bulk.design.formula` and `bulk.design.contrast` open only at the `extended` scope |
 | Advanced spatial and reference options | done | Extended geometries (radius, Delaunay) and reference deconvolution are Expert-gated; deconvolution refuses an incompatible reference |
 | Extended perturbations | done | `POST /api/runs/{id}/perturbations/custom`, bounded by the whitelist and the registry |
-| Capstone workspace | done | `capstone.py`: run attachment, figure pack with per-panel provenance, defence deck, readiness report, submission lock |
+| Capstone workspace | done | `capstone.py`: run attachment, figure pack with per-panel provenance, defence deck (8 slides, within spec 13's five-to-eight), two-page research memo, final defence score, readiness report, submission lock |
 | Premium usage controls | done | Unmetered runs, twenty perturbations per run, admin-editable upload cap |
 
 ## Scientific rules enforced in code, not copy
@@ -79,3 +79,29 @@ Raw FASTQ/BAM/CRAM processing, large remote imports and the workflow
 marketplace remain gated behind a separate compute, storage and security
 sign-off (spec 12, "Future — Compute Heavy"). Nothing has been scaffolded for
 them; the ingestion validator actively rejects raw sequencing formats.
+
+
+## Added 2026-09-09, after re-reading spec 13 and 16
+
+Three things spec 13 asks for had no implementation, and one build could not
+be produced at all.
+
+| Item | What was missing | Where it is now |
+|---|---|---|
+| Week assessment (screen 11) | `AssessmentResult` existed but only the **pre-lab** ever wrote one. The week assessment — concept understanding, analytical decisions, interpretation quality — had no endpoint and no scoring. | `content/assessment.py` (20 concept questions across the eight weeks), `core/assessment.py` (scoring), `GET`/`POST /api/program/assessment` |
+| Two-page research memo | Not implemented. | `GET /api/capstone/memo` |
+| Final defence score | Submission recorded `submitted_at` only. | Computed at submission from the record, stored on the capstone, exposed as `defenceScore` and `defenceBreakdown` |
+| Defence deck length | 11 slides, where spec 13 asks for five to eight. | Consolidated to 8; the count is asserted in the endpoint and in the test suite |
+| `INCLUDE_SCIENCE=true` | The build failed: `requirements-science.txt` carried `rpy2`, which cannot install without R. With that removed the Core pipeline still died at cell QC on a missing `scikit-image`. | `rpy2` moved to `requirements-r-worker.txt`; `scikit-image` pinned. A Core run now completes end to end, nine steps. |
+
+### The rule the assessment follows
+
+A component with no recorded work is reported as **not assessable**, never
+scored zero, and the overall figure is the mean of the components that could be
+assessed. A zero would claim the learner reasoned badly when the truth is that
+they have not reached that part of the week.
+
+The same discipline governs the defence score: every part states what it
+counted, and the note says plainly that it measures whether the work is
+defensible — complete, adjudicated, tested, stated with its limits — and not
+whether the biology is right, which the platform cannot know.

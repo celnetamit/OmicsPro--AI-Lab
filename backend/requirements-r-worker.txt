@@ -1,0 +1,9 @@
+# The R worker image, not the API image.
+#
+# Installing this needs R already present (rpy2 builds against R's headers and
+# reads R_HOME at build time), which is why it is a separate image and a
+# separate file: putting it in requirements-science.txt made the API image
+# impossible to build with INCLUDE_SCIENCE=true.
+#
+# Image contents: R + Bioconductor + DESeq2 1.42.0, reached through rpy2.
+rpy2==3.5.16

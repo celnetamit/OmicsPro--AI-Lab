@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { LabelPill } from '../components/Evidence'
 import { ApiError, get, post, api } from '../lib/api'
 import { PageHeader, Skeleton } from '../components/ui'
 import { Gated } from '../components/Locked'
@@ -15,6 +16,8 @@ interface CapstoneState {
   limitations: string[]
   futureWork: string
   submittedAt: string | null
+  defenceScore?: number | null
+  defenceBreakdown?: { parts: any[]; note: string; pending: string[] }
 }
 
 interface FigureOption {
@@ -52,6 +55,7 @@ function Workspace() {
   const [figureOptions, setFigureOptions] = useState<FigureOption[]>([])
   const [readiness, setReadiness] = useState<Readiness | null>(null)
   const [deck, setDeck] = useState<any>(null)
+  const [memo, setMemo] = useState<any>(null)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
@@ -91,6 +95,10 @@ function Workspace() {
     } catch (e) {
       setError((e as ApiError).message)
     }
+  }
+
+  async function buildMemo() {
+    setMemo(await get<any>('/api/capstone/memo'))
   }
 
   async function buildDeck() {
@@ -262,10 +270,102 @@ function Workspace() {
         <button className="secondary" onClick={buildDeck}>
           Build the defence deck
         </button>
+        <button className="secondary" onClick={buildMemo}>
+          Build the research memo
+        </button>
         <button disabled={locked} onClick={submit}>
           Submit the capstone
         </button>
       </div>
+
+      {state.defenceScore !== null && state.defenceScore !== undefined ? (
+        <div className="card">
+          <div className="spread">
+            <h3>Final defence score</h3>
+            <span className="tag">{Math.round(state.defenceScore * 100)}%</span>
+          </div>
+          <div className="scroll mt-4">
+            <table>
+              <thead>
+                <tr>
+                  <th>Measured</th>
+                  <th className="num">Score</th>
+                  <th>What it counted</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(state.defenceBreakdown?.parts ?? []).map((part: any) => (
+                  <tr key={part.key}>
+                    <td>{part.label}</td>
+                    <td className="num">
+                      {part.score === null ? '—' : `${Math.round(part.score * 100)}%`}
+                    </td>
+                    <td>
+                      {part.measures} ({part.counted}/{part.total})
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="hint">{state.defenceBreakdown?.note}</p>
+        </div>
+      ) : null}
+
+      {memo ? (
+        <div className="card">
+          <div className="spread">
+            <h3>{memo.title}</h3>
+            <span className={`tag${memo.withinTwoPages ? '' : ' neutral'}`}>
+              {memo.estimatedPages} page{memo.estimatedPages === 1 ? '' : 's'} · {memo.estimatedWords} words
+            </span>
+          </div>
+          {memo.missing.length ? (
+            <p className="caveat">Still to add: {memo.missing.join(', ')}.</p>
+          ) : null}
+
+          <h4 className="mt-4">Question</h4>
+          <p>{memo.sections.question || '—'}</p>
+
+          <h4>Approach</h4>
+          <p className="hint">
+            {memo.sections.approach.chosenAssay ?? 'No assay recorded'} ·{' '}
+            {memo.sections.approach.justification}
+          </p>
+          {memo.sections.approach.datasets.map((d: any) => (
+            <p className="small" key={d.accession}>
+              {d.name} — {d.accession} ({d.license})
+            </p>
+          ))}
+
+          <h4 className="mt-4">Findings</h4>
+          {memo.sections.findings.length === 0 ? (
+            <p className="hint">No biological interpretation recorded yet.</p>
+          ) : (
+            memo.sections.findings.map((f: any) => (
+              <div key={f.step} className="mt-4">
+                <LabelPill label={f.label} />
+                <p>{f.claim}</p>
+                <p className="hint">
+                  {f.observation} — {f.statisticalEvidence}
+                </p>
+              </div>
+            ))
+          )}
+
+          <h4 className="mt-4">Limitations</h4>
+          <ul>
+            {memo.sections.limitations.map((l: string) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+
+          <h4>Next steps</h4>
+          <p>{memo.sections.nextSteps || '—'}</p>
+
+          <p className="hint mt-4">{memo.note}</p>
+        </div>
+      ) : null}
 
       {readiness ? (
         <div className="card">

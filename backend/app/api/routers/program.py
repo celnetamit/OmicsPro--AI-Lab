@@ -11,6 +11,8 @@ from app.content import knowledge_bank, program as program_content
 from app.copilot import evidence
 from app.core import entitlements as ent
 from app.db import get_db
+from app.content import assessment as assessment_content
+from app.core import assessment
 from app.models import AssessmentResult, DesignPlan, Enrollment, Run, User
 from app.pipelines import registry
 
@@ -183,6 +185,11 @@ PRE_LAB_QUESTIONS = [
 ]
 
 
+class WeekAssessmentSubmission(BaseModel):
+    week: int = 1
+    responses: dict
+
+
 class AssessmentSubmission(BaseModel):
     assessment_id: str = "pre-lab"
     week: int = 1
@@ -239,3 +246,62 @@ def submit_pre_lab(
         "feedback": feedback,
         "recommendedTopics": review,
     }
+
+
+# ------------------------------------------------------- week assessment --
+@router.get("/assessment", dependencies=[Depends(require_feature("assessment"))])
+def week_assessment(
+    week: int = 1,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """The week's concept questions, plus what has already been measured.
+
+    The measured components are returned before submission so the learner can
+    see what the assessment reads from their work rather than being graded by
+    something invisible.
+    """
+    state = assessment.assess(db, user.id, week, responses=None)
+    previous = db.scalars(
+        select(AssessmentResult)
+        .where(
+            AssessmentResult.user_id == user.id,
+            AssessmentResult.assessment_id == f"week-{week}",
+        )
+        .order_by(AssessmentResult.created_at.desc())
+    ).first()
+    return {
+        "assessmentId": f"week-{week}",
+        "week": week,
+        "questions": [
+            {k: v for k, v in q.items() if k not in ("answer", "explanation")}
+            for q in assessment_content.questions_for(week)
+        ],
+        "components": state["components"],
+        "note": state["note"],
+        "previousScore": round(previous.score, 2) if previous else None,
+        "previousTakenAt": previous.created_at.isoformat() if previous else None,
+    }
+
+
+@router.post("/assessment", dependencies=[Depends(require_feature("assessment"))])
+def submit_week_assessment(
+    payload: WeekAssessmentSubmission,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Grade the week: concepts marked, decisions and interpretation measured."""
+    result = assessment.assess(db, user.id, payload.week, responses=payload.responses)
+    record = AssessmentResult(
+        user_id=user.id,
+        assessment_id=f"week-{payload.week}",
+        week=payload.week,
+        responses=payload.responses,
+        #: Stored as 0.0 when nothing was assessable; the breakdown carries the
+        #: distinction, and the column is not nullable.
+        score=result["score"] or 0.0,
+        recommended_topics=result["recommendedTopics"],
+    )
+    db.add(record)
+    db.commit()
+    return result
