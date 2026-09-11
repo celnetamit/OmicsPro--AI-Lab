@@ -74,6 +74,14 @@ SEED_SOURCES: List[Source] = [
         "Method paper for the locked clustering algorithm.",
     ),
     Source(
+        "mcinnes2018",
+        "method",
+        "McInnes, Healy & Melville, UMAP: Uniform Manifold Approximation and "
+        "Projection for Dimension Reduction",
+        "arXiv 2018, arXiv:1802.03426",
+        "Method paper for the locked embedding algorithm.",
+    ),
+    Source(
         "wolock2019",
         "method",
         "Wolock, Lopez & Klein, Scrublet: computational identification of cell "

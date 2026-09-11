@@ -6,10 +6,14 @@ import type { ParameterDescriptor, RunSummary } from '../lib/types'
 import { useSession } from '../components/Session'
 import { isInFlight } from '../lib/usePolledRun'
 import { EmptyState, ErrorNote, PageHeader, Skeleton, StatusPill } from '../components/ui'
+import { STEP_LABEL, TRACK_NAME, formatDate, named, plural } from '../lib/labels'
+
+const TRACKS = ['foundation', 'core', 'advanced'] as const
 
 export function RunList() {
   const { matrix } = useSession()
   const [runs, setRuns] = useState<RunSummary[] | null>(null)
+  const [track, setTrack] = useState<string>('core')
   const [panel, setPanel] = useState<{ scope: string; parameters: ParameterDescriptor[] } | null>(null)
   const [error, setError] = useState('')
 
@@ -20,10 +24,14 @@ export function RunList() {
         setRuns([])
         setError(messageOf(e))
       })
-    void get<{ scope: string; parameters: ParameterDescriptor[] }>(
-      '/api/runs/parameters/core',
-    ).then(setPanel).catch(() => undefined)
   }, [])
+
+  useEffect(() => {
+    setPanel(null)
+    void get<{ scope: string; parameters: ParameterDescriptor[] }>(`/api/runs/parameters/${track}`)
+      .then(setPanel)
+      .catch(() => setPanel({ scope: '', parameters: [] }))
+  }, [track])
 
   //: Runs execute on the server's worker pool, so the list refreshes itself
   //: while any of them is still in flight and settles once none are.
@@ -35,6 +43,8 @@ export function RunList() {
     }, 4000)
     return () => window.clearInterval(timer)
   }, [anyInFlight])
+
+  const weekly = matrix?.allowance.runsPerModulePerWeek
 
   return (
     <>
@@ -74,7 +84,7 @@ export function RunList() {
             </EmptyState>
           ) : (
             <div className="scroll">
-              <table>
+              <table className="stacked">
                 <thead>
                   <tr>
                     <th>Run</th>
@@ -82,22 +92,26 @@ export function RunList() {
                     <th>Status</th>
                     <th>Pipeline</th>
                     <th>Kind</th>
+                    <th>Finished</th>
                   </tr>
                 </thead>
                 <tbody>
                   {runs.map((run) => (
                     <tr key={run.id}>
-                      <td>
+                      <td data-label="Run">
                         <Link className="mono" to={`/runs/${run.id}`}>
                           {run.id.slice(0, 8)}
                         </Link>
                       </td>
-                      <td>{run.track}</td>
-                      <td>
+                      <td data-label="Track">{named(TRACK_NAME, run.track)}</td>
+                      <td data-label="Status">
                         <StatusPill status={run.status} />
                       </td>
-                      <td>{run.pipelineVersion}</td>
-                      <td>{run.isOriginal ? 'Original' : 'Alternate settings'}</td>
+                      <td data-label="Pipeline" className="mono small">
+                        {run.pipelineVersion}
+                      </td>
+                      <td data-label="Kind">{run.isOriginal ? 'Original' : 'Alternate settings'}</td>
+                      <td data-label="Finished">{formatDate(run.finishedAt)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -108,48 +122,63 @@ export function RunList() {
       )}
 
       <div className="card">
-        <h3>Parameters available to you</h3>
+        <div className="card-head">
+          <h3>Parameters available to you</h3>
+          <div className="segmented" role="group" aria-label="Analysis track">
+            {TRACKS.map((key) => (
+              <button key={key} type="button" aria-pressed={track === key} onClick={() => setTrack(key)}>
+                {TRACK_NAME[key]}
+              </button>
+            ))}
+          </div>
+        </div>
         <p className="hint">
-          Range scope: <strong>{panel?.scope ?? '—'}</strong> ·{' '}
-          {matrix?.allowance.runsPerModulePerWeek === null
+          Range scope: <strong>{panel?.scope || '—'}</strong> ·{' '}
+          {weekly === null || weekly === undefined
             ? 'unmetered runs'
-            : `${matrix?.allowance.runsPerModulePerWeek} runs per module per week`}
+            : `${plural(weekly, 'run')} per module per week`}
         </p>
         <LockNote feature="parameters_full" />
-        <div className="scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Parameter</th>
-                <th>Step</th>
-                <th>Default</th>
-                <th>Range you may set</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(panel?.parameters ?? []).map((parameter) => (
-                <tr key={parameter.key}>
-                  <td>
-                    {parameter.label}
-                    <div className="hint">{parameter.methodRule}</div>
-                    {parameter.caveat ? <div className="caveat">{parameter.caveat}</div> : null}
-                  </td>
-                  <td>{parameter.step}</td>
-                  <td>{String(parameter.default)}</td>
-                  <td>
-                    {parameter.min !== null
-                      ? `${parameter.min} – ${parameter.max}`
-                      : parameter.choices
-                        ? parameter.choices.join(', ')
-                        : parameter.freeform
-                          ? 'free text'
-                          : 'true / false'}
-                  </td>
+        {panel === null ? (
+          <Skeleton lines={3} title={false} />
+        ) : panel.parameters.length === 0 ? (
+          <p className="hint">No learner-set parameters are registered for this track.</p>
+        ) : (
+          <div className="scroll">
+            <table className="stacked">
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Step</th>
+                  <th>Default</th>
+                  <th>Range you may set</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {panel.parameters.map((parameter) => (
+                  <tr key={parameter.key}>
+                    <td data-label="Parameter" className="stack-block">
+                      {parameter.label}
+                      <div className="hint">{parameter.methodRule}</div>
+                      {parameter.caveat ? <div className="caveat">{parameter.caveat}</div> : null}
+                    </td>
+                    <td data-label="Step">{named(STEP_LABEL, parameter.step)}</td>
+                    <td data-label="Default">{String(parameter.default)}</td>
+                    <td data-label="Range">
+                      {parameter.min !== null
+                        ? `${parameter.min} – ${parameter.max}`
+                        : parameter.choices
+                          ? parameter.choices.join(', ')
+                          : parameter.freeform
+                            ? 'free text'
+                            : 'true / false'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </>
   )

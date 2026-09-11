@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { get } from '../lib/api'
 import { Band, EmptyState, PageHeader, SectionHead, Skeleton, StatusPill } from '../components/ui'
+import { TRACK_NAME, named } from '../lib/labels'
 import { TRACK_ICONS } from '../components/icons'
 import { useSession } from '../components/Session'
 import type { FeatureRow, RunSummary, WeekRow } from '../lib/types'
@@ -105,7 +106,7 @@ export function LabHome() {
         />
         <div className="card">
           <div className="scroll">
-          <table>
+          <table className="stacked">
             <thead>
               <tr>
                 <th>Week</th>
@@ -117,10 +118,10 @@ export function LabHome() {
             <tbody>
               {home.weeks.map((week) => (
                 <tr key={week.week}>
-                  <td>{week.week}</td>
-                  <td>{week.focus}</td>
-                  <td>{week.moduleLabel}</td>
-                  <td>{STATUS_TEXT[week.status] ?? week.status}</td>
+                  <td data-label="Week">{week.week}</td>
+                  <td data-label="Focus">{week.focus}</td>
+                  <td data-label="Module">{week.moduleLabel}</td>
+                  <td data-label="Status">{STATUS_TEXT[week.status] ?? week.status}</td>
                 </tr>
               ))}
             </tbody>
@@ -200,7 +201,7 @@ export function LabHome() {
           </EmptyState>
         ) : (
           <div className="scroll">
-          <table>
+          <table className="stacked">
             <thead>
               <tr>
                 <th>Run</th>
@@ -212,16 +213,16 @@ export function LabHome() {
             <tbody>
               {home.recentRuns.map((run) => (
                 <tr key={run.id}>
-                  <td>
+                  <td data-label="Run">
                     <Link className="mono" to={`/runs/${run.id}`}>
                       {run.id.slice(0, 8)}
                     </Link>
                   </td>
-                  <td>{run.track}</td>
-                  <td>
+                  <td data-label="Track">{named(TRACK_NAME, run.track)}</td>
+                  <td data-label="Status">
                     <StatusPill status={run.status} />
                   </td>
-                  <td>{run.isOriginal ? 'Original' : 'Alternate settings'}</td>
+                  <td data-label="Kind">{run.isOriginal ? 'Original' : 'Alternate settings'}</td>
                 </tr>
               ))}
               </tbody>

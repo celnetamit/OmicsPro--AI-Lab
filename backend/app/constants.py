@@ -104,6 +104,17 @@ LOCKED_METHODS = {
         "rationale": "Spec 10; resolution exposed as a constrained model choice.",
         "sme_signoff": False,
     },
+    "embedding": {
+        "method": "UMAP",
+        "engine": "umap-learn",
+        "version": "0.5.12",
+        "rationale": (
+            "Spec 5.2: neighbours -> UMAP -> Leiden. A layout for looking at the "
+            "neighbour graph, not a measurement; the seed is fixed so a run "
+            "reproduces."
+        ),
+        "sme_signoff": False,
+    },
     "doublet_detection": {
         "method": "Scrublet",
         "engine": "scanpy.pp.scrublet",
@@ -192,7 +203,7 @@ LOCKED_METHODS = {
 # Version stamped onto every run record (spec 10). Bump on any method change.
 PIPELINE_VERSIONS = {
     AnalysisTrack.FOUNDATION: "foundation-1.0.0",
-    AnalysisTrack.CORE: "core-1.0.0",
+    AnalysisTrack.CORE: "core-1.1.0",
     AnalysisTrack.ADVANCED: "advanced-1.0.0",
 }
 

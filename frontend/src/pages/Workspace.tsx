@@ -3,6 +3,9 @@ import { Link, useParams } from 'react-router-dom'
 import { ApiError, get, messageOf, post, requestIdOf } from '../lib/api'
 import { isInFlight, usePolledRun } from '../lib/usePolledRun'
 import { ErrorNote, PageHeader, Skeleton, Spinner, StatusPill } from '../components/ui'
+import { Figure } from '../components/Figure'
+import type { FigureSpec } from '../components/Figure'
+import { STEP_LABEL, TRACK_LABEL, humanise, named } from '../lib/labels'
 import { Caveats, EvidenceList, LabelPill } from '../components/Evidence'
 import { PerturbationDialog } from '../components/PerturbationDialog'
 import { useSession } from '../components/Session'
@@ -61,6 +64,7 @@ export function Workspace() {
   const [offers, setOffers] = useState<PerturbationOffer[]>([])
   const [activeOffer, setActiveOffer] = useState<PerturbationOffer | null>(null)
   const [perturbationResult, setPerturbationResult] = useState<any>(null)
+  const [figures, setFigures] = useState<FigureSpec[] | null>(null)
   const [fields, setFields] = useState(EMPTY_FIELDS)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -150,6 +154,16 @@ export function Workspace() {
     }
   }, [run, step, can])
 
+  //: Figures come from the run's record, so a failed run still draws every
+  //: step it completed; only a run in flight has nothing settled to draw.
+  useEffect(() => {
+    if (!run || !step || (run.status !== 'completed' && run.status !== 'failed')) return
+    setFigures(null)
+    void get<FigureSpec[]>(`/api/runs/${run.id}/figures`, { step })
+      .then(setFigures)
+      .catch(() => setFigures([]))
+  }, [run, step])
+
   async function decide(decision: 'test' | 'skip') {
     if (!activeOffer || !run) return
     setBusy(true)
@@ -195,6 +209,9 @@ export function Workspace() {
 
   const outputs = run.outputs ?? {}
   const working = isInFlight(run.status)
+  //: Steps are named by their title, never by the key the pipeline stores.
+  const stepTitle = (key: string | null) =>
+    key ? steps.find((s) => s.step === key)?.title ?? named(STEP_LABEL, key) : 'none'
 
   return (
     <>
@@ -202,8 +219,8 @@ export function Workspace() {
         title="Analysis Workspace"
         lede={
           <>
-            {run.track}
-            {run.module ? ` · ${run.module}` : ''} · {run.pipelineVersion}
+            {named(TRACK_LABEL, run.track)}
+            {run.module ? ` · ${humanise(run.module)}` : ''} · pipeline {run.pipelineVersion}
             {run.isOriginal ? '' : ' · alternate settings'}
           </>
         }
@@ -218,7 +235,7 @@ export function Workspace() {
             it finishes. You can leave this page and come back — the run continues
             without the browser.
             {run.lastValidStep ? (
-              <div className="small mt-4">Completed so far: {run.lastValidStep}</div>
+              <div className="small mt-4">Completed so far: {stepTitle(run.lastValidStep)}</div>
             ) : null}
           </div>
           {polling ? <Spinner /> : null}
@@ -233,7 +250,7 @@ export function Workspace() {
           <p className="hint">
             The analysis stopped at this point. Results from the steps that completed are
             preserved below, and the last valid step was{' '}
-            <strong>{run.lastValidStep ?? 'none'}</strong>.
+            <strong>{stepTitle(run.lastValidStep)}</strong>.
           </p>
         </div>
       ) : null}
@@ -270,208 +287,232 @@ export function Workspace() {
         </ol>
       </nav>
 
-      <div className="reading">
-      {error ? <ErrorNote message={error} requestId={errorRef} /> : null}
+      {/* What the step produced on the left; the Copilot's reading of it and the
+          what-if on the right. On a narrow screen the columns dissolve and the
+          cards interleave back into reading order (the ws-o classes). */}
+      <div className="ws-layout">
+        <div className="ws-main">
+          {error ? <ErrorNote message={error} requestId={errorRef} /> : null}
 
-      {explanation ? (
-        <div className="card">
-          <span className="badge">Copilot explanation</span>
-          <h3>{explanation.title}</h3>
-          <p>{explanation.purpose}</p>
-          <p>
-            <strong>{explanation.text}</strong>
-          </p>
-          <p>
-            <strong>What to observe:</strong> {explanation.whatToObserve}
-          </p>
-          <Caveats items={explanation.caveats} />
-          <EvidenceList sources={explanation.evidence} />
-          <p className="hint">
-            Every value above was computed by the pipeline for this run. The Copilot does
-            not calculate results.
-          </p>
-        </div>
-      ) : null}
-
-      <div className="card">
-        <h3>Computed output</h3>
-        <div className="scroll">
-          <pre style={{ fontSize: 12.5 }}>
-            {JSON.stringify(pickStepOutputs(outputs, step), null, 2)}
-          </pre>
-        </div>
-      </div>
-
-      {challenge?.warnings?.length ? (
-        <div className="card">
-          <span className="badge">Copilot challenge</span>
-          {challenge.warnings.map((warning) => (
-            <p className="warning" key={warning.message}>
-              {warning.message}
-            </p>
-          ))}
-        </div>
-      ) : null}
-
-      {can('perturbation_extended') ? (
-        <CustomPerturbation
-          runId={run.id}
-          parameters={run.parameters}
-          onDone={(result) => {
-            setPerturbationResult(result)
-            void loadRun()
-          }}
-        />
-      ) : null}
-
-      {offers.length ? (
-        <div className="card">
-          <span className="badge">What-if</span>
-          <h3>Test an analysis decision</h3>
-          <div className="stack">
-            {offers.map((offer) => (
-              <div key={offer.key}>
-                <p>
-                  <strong>{offer.label}</strong>
+          {/* Figures are drawn from the run's record. A failed run shows them for
+              the steps it completed; while a run is in flight, the progress panel
+              above is the whole story. */}
+          {run.status === 'completed' || (run.status === 'failed' && !!figures?.length) ? (
+            <div className="card ws-o2">
+              <h3>Results</h3>
+              {figures === null ? (
+                <Spinner label="Drawing this step's results" />
+              ) : figures.length ? (
+                figures.map((figure) => <Figure key={figure.id} figure={figure} />)
+              ) : (
+                <p className="hint">
+                  This step records numbers rather than a figure; they are listed below.
                 </p>
-                <button className="secondary" onClick={() => setActiveOffer(offer)}>
-                  Review this change
+              )}
+            </div>
+          ) : null}
+
+          <details className="card raw-output ws-o3">
+            <summary>Computed output, as recorded</summary>
+            <div className="scroll">
+              <pre style={{ fontSize: 12.5 }}>
+                {JSON.stringify(pickStepOutputs(outputs, step), null, 2)}
+              </pre>
+            </div>
+          </details>
+
+          {perturbationResult?.perturbation ? (
+            <div className="card ws-o6">
+              <h3>Expected versus actual</h3>
+              {perturbationResult.perturbation.decision === 'skip' ? (
+                <p>
+                  You skipped this change. The decision is recorded in your reproducibility
+                  log.
+                </p>
+              ) : !perturbationResult.perturbation.actualOutcome ? (
+                <div className="note" role="status" aria-live="polite">
+                  <div className="note-body">
+                    <strong>Running the alternate settings</strong>
+                    The comparison appears here once the second run finishes. Your original
+                    run is untouched.
+                  </div>
+                  <Spinner />
+                </div>
+              ) : (
+                <>
+                  <div className="scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Metric</th>
+                          <th>Expected</th>
+                          <th>Observed</th>
+                          <th>Before</th>
+                          <th>After</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {perturbationResult.perturbation.actualOutcome?.comparisons?.map((row: any) => (
+                          <tr key={row.metric}>
+                            <td>{row.metricLabel}</td>
+                            <td>{row.expected}</td>
+                            <td>{row.observed}</td>
+                            <td>{String(row.before)}</td>
+                            <td>{String(row.after)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="hint">
+                    {perturbationResult.perturbation.divergenceExplanation}
+                  </p>
+                  <p className="hint">
+                    Your original run is unchanged.{' '}
+                    <Link to={`/compare?original=${run.id}&alternate=${perturbationResult.alternateRun?.id}`}>
+                      Compare the two runs
+                    </Link>
+                  </p>
+                </>
+              )}
+            </div>
+          ) : null}
+
+          {interpretation ? (
+            <div className="card ws-o7">
+              <span className="badge">Interpretation</span>
+              <LabelPill label={interpretation.label} rationale={interpretation.labelRationale} />
+              <div className="fields mt-4">
+                <div>
+                  <label htmlFor="obs">Observation</label>
+                  <p className="hint">Copilot: {interpretation.observation}</p>
+                  <textarea
+                    id="obs"
+                    value={fields.observation}
+                    onChange={(e) => setFields({ ...fields, observation: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="stat">Statistical evidence</label>
+                  <p className="hint">Copilot: {interpretation.statisticalEvidence}</p>
+                  <textarea
+                    id="stat"
+                    value={fields.statistical_evidence}
+                    onChange={(e) => setFields({ ...fields, statistical_evidence: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="bio">Biological interpretation</label>
+                  <p className="hint">Copilot: {interpretation.biologicalInterpretation}</p>
+                  <textarea
+                    id="bio"
+                    value={fields.biological_interpretation}
+                    onChange={(e) =>
+                      setFields({ ...fields, biological_interpretation: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <label htmlFor="hyp">Hypothesis to test next</label>
+                  <p className="hint">Copilot: {interpretation.hypothesis}</p>
+                  <textarea
+                    id="hyp"
+                    value={fields.hypothesis}
+                    onChange={(e) => setFields({ ...fields, hypothesis: e.target.value })}
+                  />
+                </div>
+              </div>
+              <Caveats items={interpretation.caveats} />
+              <EvidenceList sources={interpretation.evidence} />
+
+              <div className="row mt-4">
+                <button onClick={saveInterpretation}>Save my interpretation</button>
+                <button className="secondary" onClick={() => audit('accept')}>
+                  Accept the Copilot output
+                </button>
+                <button className="secondary" onClick={() => audit('modify')}>
+                  Modify
+                </button>
+                <button className="secondary" onClick={() => audit('reject')}>
+                  Reject
+                </button>
+                <button className="secondary" onClick={() => audit('needs_validation')}>
+                  Needs validation
                 </button>
               </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {activeOffer ? (
-        <PerturbationDialog offer={activeOffer} busy={busy} onDecide={decide} />
-      ) : null}
-
-      {perturbationResult?.perturbation ? (
-        <div className="card">
-          <h3>Expected versus actual</h3>
-          {perturbationResult.perturbation.decision === 'skip' ? (
-            <p>
-              You skipped this change. The decision is recorded in your reproducibility
-              log.
-            </p>
-          ) : !perturbationResult.perturbation.actualOutcome ? (
-            <div className="note" role="status" aria-live="polite">
-              <div className="note-body">
-                <strong>Running the alternate settings</strong>
-                The comparison appears here once the second run finishes. Your original
-                run is untouched.
-              </div>
-              <Spinner />
-            </div>
-          ) : (
-            <>
-              <div className="scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Metric</th>
-                      <th>Expected</th>
-                      <th>Observed</th>
-                      <th>Before</th>
-                      <th>After</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {perturbationResult.perturbation.actualOutcome?.comparisons?.map((row: any) => (
-                      <tr key={row.metric}>
-                        <td>{row.metricLabel}</td>
-                        <td>{row.expected}</td>
-                        <td>{row.observed}</td>
-                        <td>{String(row.before)}</td>
-                        <td>{String(row.after)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
               <p className="hint">
-                {perturbationResult.perturbation.divergenceExplanation}
+                Your decision is stored alongside the original Copilot output and its evidence.
+                The Copilot's record is never rewritten.
               </p>
+            </div>
+          ) : null}
+        </div>
+        <aside className="ws-side" aria-label="Copilot and what-if">
+          {explanation ? (
+            <div className="card ws-o1">
+              <span className="badge">Copilot explanation</span>
+              <h3>{explanation.title}</h3>
+              <p>{explanation.purpose}</p>
+              <p>
+                <strong>{explanation.text}</strong>
+              </p>
+              <p>
+                <strong>What to observe:</strong> {explanation.whatToObserve}
+              </p>
+              <Caveats items={explanation.caveats} />
+              <EvidenceList sources={explanation.evidence} />
               <p className="hint">
-                Your original run is unchanged.{' '}
-                <Link to={`/compare?original=${run.id}&alternate=${perturbationResult.alternateRun?.id}`}>
-                  Compare the two runs
-                </Link>
+                Every value above was computed by the pipeline for this run. The Copilot does
+                not calculate results.
               </p>
-            </>
-          )}
-        </div>
-      ) : null}
+            </div>
+          ) : null}
 
-      {interpretation ? (
-        <div className="card">
-          <span className="badge">Interpretation</span>
-          <LabelPill label={interpretation.label} rationale={interpretation.labelRationale} />
-          <div className="fields mt-4">
-            <div>
-              <label htmlFor="obs">Observation</label>
-              <p className="hint">Copilot: {interpretation.observation}</p>
-              <textarea
-                id="obs"
-                value={fields.observation}
-                onChange={(e) => setFields({ ...fields, observation: e.target.value })}
-              />
+          {challenge?.warnings?.length ? (
+            <div className="card ws-o4">
+              <span className="badge">Copilot challenge</span>
+              {challenge.warnings.map((warning) => (
+                <p className="warning" key={warning.message}>
+                  {warning.message}
+                </p>
+              ))}
             </div>
-            <div>
-              <label htmlFor="stat">Statistical evidence</label>
-              <p className="hint">Copilot: {interpretation.statisticalEvidence}</p>
-              <textarea
-                id="stat"
-                value={fields.statistical_evidence}
-                onChange={(e) => setFields({ ...fields, statistical_evidence: e.target.value })}
-              />
-            </div>
-            <div>
-              <label htmlFor="bio">Biological interpretation</label>
-              <p className="hint">Copilot: {interpretation.biologicalInterpretation}</p>
-              <textarea
-                id="bio"
-                value={fields.biological_interpretation}
-                onChange={(e) =>
-                  setFields({ ...fields, biological_interpretation: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <label htmlFor="hyp">Hypothesis to test next</label>
-              <p className="hint">Copilot: {interpretation.hypothesis}</p>
-              <textarea
-                id="hyp"
-                value={fields.hypothesis}
-                onChange={(e) => setFields({ ...fields, hypothesis: e.target.value })}
-              />
-            </div>
-          </div>
-          <Caveats items={interpretation.caveats} />
-          <EvidenceList sources={interpretation.evidence} />
+          ) : null}
 
-          <div className="row mt-4">
-            <button onClick={saveInterpretation}>Save my interpretation</button>
-            <button className="secondary" onClick={() => audit('accept')}>
-              Accept the Copilot output
-            </button>
-            <button className="secondary" onClick={() => audit('modify')}>
-              Modify
-            </button>
-            <button className="secondary" onClick={() => audit('reject')}>
-              Reject
-            </button>
-            <button className="secondary" onClick={() => audit('needs_validation')}>
-              Needs validation
-            </button>
-          </div>
-          <p className="hint">
-            Your decision is stored alongside the original Copilot output and its evidence.
-            The Copilot's record is never rewritten.
-          </p>
-        </div>
-      ) : null}
+          {can('perturbation_extended') ? (
+            <CustomPerturbation
+              runId={run.id}
+              parameters={run.parameters}
+              onDone={(result) => {
+                setPerturbationResult(result)
+                void loadRun()
+              }}
+            />
+          ) : null}
+
+          {offers.length ? (
+            <div className="card ws-o5">
+              <span className="badge">What-if</span>
+              <h3>Test an analysis decision</h3>
+              <div className="stack">
+                {offers.map((offer) => (
+                  <div key={offer.key}>
+                    <p>
+                      <strong>{offer.label}</strong>
+                    </p>
+                    <button className="secondary" onClick={() => setActiveOffer(offer)}>
+                      Review this change
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {activeOffer ? (
+            <PerturbationDialog offer={activeOffer} busy={busy} onDecide={decide} />
+          ) : null}
+        </aside>
       </div>
     </>
   )
@@ -565,7 +606,7 @@ function CustomPerturbation({
   }
 
   return (
-    <div className="card">
+    <div className="card ws-o5">
       <span className="badge">Your own what-if</span>
       <h3>Author a change</h3>
       <label htmlFor="param">Setting</label>
@@ -612,6 +653,7 @@ function pickStepOutputs(outputs: Record<string, unknown>, step: string) {
     exploratory: 'exploratory',
     feature_selection: 'hvg',
     dimensionality_reduction: 'pca',
+    embedding: 'umap',
     clustering: 'cluster',
     marker_genes: 'markers',
     composition: 'composition',

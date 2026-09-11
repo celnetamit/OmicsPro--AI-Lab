@@ -36,6 +36,31 @@ def _has_active_enrollment(db: Session, user_id: str) -> bool:
     )
 
 
+def ensure_open_access_tier(db: Session, user_id: str, tier: AccessTier) -> Optional[Entitlement]:
+    """Hold the open-access session at a configured tier.
+
+    Used only by the shared open-access account, so an evaluation deployment can
+    exercise the paid features without a purchase. Idempotent, and it grants
+    rather than bypasses: every entitlement check still runs, the account simply
+    holds the grant. Basic needs nothing beyond the enrollment auto-grant.
+    """
+    if tier is AccessTier.BASIC:
+        return None
+    for entitlement in active_entitlements(db, user_id):
+        if AccessTier(entitlement.tier) is tier:
+            return entitlement
+    granted = Entitlement(
+        user_id=user_id,
+        tier=tier,
+        source="open_access_configuration",
+        expires_at=None,
+        note="Granted by OMICSLAB_OPEN_ACCESS_TIER for evaluation.",
+    )
+    db.add(granted)
+    db.commit()
+    return granted
+
+
 def ensure_basic_auto_grant(db: Session, user_id: str) -> Optional[Entitlement]:
     """Auto-grant Basic on flagship enrollment (spec 2, 13).
 

@@ -69,7 +69,10 @@ def _stub_for(template):
     import re
 
     computed, parameters = {}, {}
-    for kind, path in re.findall(r"\{\{(computed|param|method):([\w.\[\]-]+)\}\}", template):
+    #: A reference may carry a fallback word (``|none``); the path is what the stub needs.
+    for kind, path in re.findall(
+        r"\{\{(computed|param|method):([\w.\[\]-]+)(?:\|[a-z ]+)?\}\}", template
+    ):
         if kind == "computed":
             node = computed
             parts = path.split(".")
@@ -103,3 +106,16 @@ def test_missing_replication_downgrades_a_conclusion():
 def test_cell_level_grouping_downgrades_a_conclusion():
     triggered = labels.evaluate({}, {"grouping": "per_cell"})
     assert "cell_level_inference" in triggered
+
+
+def test_an_empty_reference_reads_as_its_fallback_word():
+    """ "Highest ranked: ." is what an empty list rendered as before; a named
+    fallback reads as a sentence and is still recorded as a reference."""
+    from app.copilot.grounding import render
+
+    empty = render("Highest ranked: {{computed:p.top|none}}.", {"p": {"top": []}}, {}, [])
+    assert empty.text == "Highest ranked: none."
+    assert "p.top" in empty.computed_refs
+
+    filled = render("Highest ranked: {{computed:p.top|none}}.", {"p": {"top": ["IL7R"]}}, {}, [])
+    assert filled.text == "Highest ranked: IL7R."

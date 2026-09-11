@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useSession } from './Session'
+import { ReportIssue } from './ReportIssue'
 import { ThemeToggle } from './ThemeToggle'
 
 /** The thirteen screens, grouped as they are in the program itself. */
@@ -164,7 +165,7 @@ export function Layout() {
             for NanoSchool's eight-week single-cell and spatial transcriptomics program.
           </span>
           <span className="release-stamp">
-            {openAccess ? 'Open lab session · ' : ''}Release {RELEASE}
+            <ReportIssue /> · {openAccess ? 'Open lab session · ' : ''}Release {RELEASE}
           </span>
         </div>
       </footer>

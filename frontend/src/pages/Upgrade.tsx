@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ApiError, get, post } from '../lib/api'
 import { PageHeader, Skeleton } from '../components/ui'
+import { EXPORT_LABEL, TIER_LABEL, named, plural } from '../lib/labels'
 
 interface Column {
   tier: string
@@ -92,19 +93,21 @@ export function Upgrade() {
             <p className="hint">
               {column.runsPerModulePerWeek === null
                 ? 'Unmetered runs'
-                : `${column.runsPerModulePerWeek} runs per module per week`}{' '}
-              · {column.perturbationsPerRun} what-if tests per run · {column.parameterScope}{' '}
-              parameter ranges
+                : `${plural(column.runsPerModulePerWeek, 'run')} per module per week`}{' '}
+              · {plural(column.perturbationsPerRun, 'what-if test')} per run ·{' '}
+              {column.parameterScope} parameter ranges
             </p>
-            <p>
+            <p className="tier-adds-label">
               <strong>Adds</strong>
             </p>
-            <ul>
+            <ul className="tier-adds">
               {column.features.map((feature) => (
                 <li key={feature}>{feature}</li>
               ))}
             </ul>
-            <p className="hint">Exports: {column.exportFormats.join(', ')}</p>
+            <p className="hint">
+              Exports: {column.exportFormats.map((format) => named(EXPORT_LABEL, format)).join(', ')}
+            </p>
             {column.purchasable ? (
               <PurchaseButton
                 option={catalogue.find((o) => o.tier === column.tier)}
@@ -135,7 +138,7 @@ export function Upgrade() {
                 {purchases.map((purchase) => (
                   <tr key={purchase.id}>
                     <td>{purchase.id.slice(0, 8)}</td>
-                    <td>{purchase.tier}</td>
+                    <td>{named(TIER_LABEL, purchase.tier)}</td>
                     <td>{purchase.status.replace(/_/g, ' ')}</td>
                     <td>{new Date(purchase.createdAt).toLocaleDateString()}</td>
                   </tr>
@@ -153,7 +156,7 @@ export function Upgrade() {
             <ul>
               {expiry.paidGrants.map((grant: any) => (
                 <li key={grant.tier}>
-                  {grant.tier} access runs until{' '}
+                  {named(TIER_LABEL, grant.tier)} access runs until{' '}
                   {new Date(grant.expiresAt).toLocaleDateString()}
                 </li>
               ))}
@@ -163,15 +166,13 @@ export function Upgrade() {
           )}
           <p className="hint">{expiry.note}</p>
           <p className="hint">
-            {expiry.reportsRetained} report(s) are retained on this account.
+            {expiry.reportsRetained
+              ? `${plural(expiry.reportsRetained, 'report')} ${expiry.reportsRetained === 1 ? 'is' : 'are'} retained on this account.`
+              : 'No reports are retained on this account yet.'}
           </p>
         </div>
       ) : null}
 
-      <p className="caveat">
-        The teaching content of every week is included at every access level. Paid tiers add
-        depth, repetition, independence and richer outputs.
-      </p>
     </>
   )
 }

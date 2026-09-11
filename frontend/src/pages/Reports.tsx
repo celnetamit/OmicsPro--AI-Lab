@@ -4,6 +4,7 @@ import { LockNote } from '../components/Locked'
 import { useSession } from '../components/Session'
 import { PageHeader } from '../components/ui'
 import type { RunSummary } from '../lib/types'
+import { EXPORT_LABEL, TIER_LABEL, TRACK_NAME, formatDate, named } from '../lib/labels'
 
 interface ReportRow {
   id: string
@@ -46,7 +47,8 @@ export function Reports() {
       <div className="card">
         <h3>Build a report</h3>
         <p className="hint">
-          Formats available to you: {matrix?.allowance.exportFormats.join(', ')}
+          Formats available to you:{' '}
+          {(matrix?.allowance.exportFormats ?? []).map((format) => named(EXPORT_LABEL, format)).join(', ')}
         </p>
         <LockNote feature="report_full" />
         <div className="stack">
@@ -54,8 +56,9 @@ export function Reports() {
             .filter((run) => run.status === 'completed')
             .map((run) => (
               <div key={run.id} className="row">
-                <span>
-                  <strong>{run.id.slice(0, 8)}</strong> · {run.track} ·
+                <span className="report-run">
+                  <strong className="mono">{run.id.slice(0, 8)}</strong> ·{' '}
+                  {named(TRACK_NAME, run.track)} · finished {formatDate(run.finishedAt)}
                 </span>
                 {(matrix?.allowance.exportFormats ?? []).map((format) => (
                   <button
@@ -63,7 +66,7 @@ export function Reports() {
                     className="secondary"
                     onClick={() => build(run.id, format)}
                   >
-                    {format}
+                    {named(EXPORT_LABEL, format)}
                   </button>
                 ))}
               </div>
@@ -102,8 +105,8 @@ export function Reports() {
                         {report.id.slice(0, 8)}
                       </a>
                     </td>
-                    <td>{report.exportFormat}</td>
-                    <td>{report.generatedTier}</td>
+                    <td>{named(EXPORT_LABEL, report.exportFormat)}</td>
+                    <td>{named(TIER_LABEL, report.generatedTier)}</td>
                     <td>{new Date(report.createdAt).toLocaleString()}</td>
                   </tr>
                 ))}

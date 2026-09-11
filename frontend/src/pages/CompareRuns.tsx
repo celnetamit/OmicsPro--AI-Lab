@@ -4,6 +4,7 @@ import { ApiError, get } from '../lib/api'
 import { Gated } from '../components/Locked'
 import { PageHeader } from '../components/ui'
 import type { RunSummary } from '../lib/types'
+import { TRACK_NAME, humanise, named } from '../lib/labels'
 
 interface SettingRow {
   key: string
@@ -97,8 +98,8 @@ function Comparison() {
                 <option value="">Select…</option>
                 {completed.map((run) => (
                   <option key={run.id} value={run.id}>
-                    {run.id.slice(0, 8)} · {run.track}
-                    {run.module ? ` · ${run.module}` : ''} ·{' '}
+                    {run.id.slice(0, 8)} · {named(TRACK_NAME, run.track)}
+                    {run.module ? ` · ${humanise(run.module)}` : ''} ·{' '}
                     {run.isOriginal ? 'original' : 'alternate'}
                   </option>
                 ))}

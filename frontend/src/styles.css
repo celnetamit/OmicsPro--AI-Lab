@@ -59,6 +59,23 @@
   --band: #f7f9fd;
   --band-alt: #fafbfc;
 
+  /* Chart tokens. The eight categorical slots are the dataviz reference
+     palette, validated against this card surface (#ffffff): every adjacent pair
+     clears CVD separation and the normal-vision floor. Aqua, yellow and magenta
+     sit below 3:1 on white, which is why every figure also has a table view. */
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-4: #eda100;
+  --viz-5: #e87ba4;
+  --viz-6: #008300;
+  --viz-7: #4a3aa7;
+  --viz-8: #e34948;
+  /* Diverging pair for direction (blue <-> red), grey for "nothing". */
+  --viz-up: #e34948;
+  --viz-down: #2a78d6;
+  --viz-neutral: #aab4bf;
+
   /* The navigation rail and the hero are dark in both themes: they are
      surfaces, not text, so they must not follow --ink-deep when it inverts. */
   --rail: #0e192f;
@@ -132,6 +149,19 @@
     --ink: #e9eef6;
     --ink-deep: #ffffff;
     --rail: #0b1626;
+    /* Chart tokens, stepped for the dark card surface (#111b2e) and validated
+       against it: all eight slots clear 3:1 there. */
+    --viz-1: #3987e5;
+    --viz-2: #d95926;
+    --viz-3: #199e70;
+    --viz-4: #c98500;
+    --viz-5: #d55181;
+    --viz-6: #008300;
+    --viz-7: #9085e9;
+    --viz-8: #e66767;
+    --viz-up: #e66767;
+    --viz-down: #3987e5;
+    --viz-neutral: #4d5e75;
     --band: #0a1120;
     --band-alt: #0d1626;
     --ink-soft: #c3cfe0;
@@ -170,6 +200,19 @@
 /* The toggle: an explicit choice overrides the system preference in both
    directions, so the same tokens are declared for it. */
 :root[data-theme='dark'] {
+  /* Chart tokens, stepped for the dark card surface (#111b2e) and validated
+     against it: all eight slots clear 3:1 there. */
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-4: #c98500;
+  --viz-5: #d55181;
+  --viz-6: #008300;
+  --viz-7: #9085e9;
+  --viz-8: #e66767;
+  --viz-up: #e66767;
+  --viz-down: #3987e5;
+  --viz-neutral: #4d5e75;
   --ground: #0a1120;
   --surface: #111b2e;
   --surface-sunken: #0d1626;
@@ -229,6 +272,7 @@ body {
 }
 
 h1, h2, h3, h4 { line-height: 1.2; font-weight: 700; letter-spacing: -0.021em; color: var(--ink-deep); }
+h1 { margin: 0 0 var(--space-1); font-size: 34px; }
 h2 { margin: 0 0 var(--space-1); font-size: 30px; }
 h3 { margin: 0 0 var(--space-2); font-size: 17px; letter-spacing: -0.014em; }
 h4 { margin: 0 0 var(--space-2); font-size: 14px; }
@@ -442,6 +486,10 @@ main { width: 100%; min-width: 0; flex: 1; }
 }
 .band.accent .button:hover { background: var(--ink-deep); border-color: var(--ink-deep); color: #fff; }
 
+/* Bands were sized for the hero screen's rhythm. Under an ordinary page title
+   the same 80px top and bottom put 160px between two sections of one page. */
+.container:has(> .page-head) > .band { padding-block: 48px; }
+
 /* A page that ends in a band supplies its own closing space. */
 .container:has(> .band:last-child) { padding-bottom: 0; }
 
@@ -453,6 +501,8 @@ main { width: 100%; min-width: 0; flex: 1; }
 }
 
 .page-head { margin-bottom: var(--space-5); }
+/* The screen's one h1: the largest text on every page but the hero. */
+.page-head h1 { font-size: clamp(28px, 1.6vw + 14px, 36px); letter-spacing: -0.026em; }
 .page-head .row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
 .lede { color: var(--muted); margin: var(--space-1) 0 0; font-size: 14.5px; max-width: 72ch; }
 
@@ -516,11 +566,24 @@ main { width: 100%; min-width: 0; flex: 1; }
   margin-bottom: var(--space-4);
   box-shadow: var(--shadow);
 }
-/* A column for screens that are read and written rather than scanned. The
-   workspace is prose, evidence and free-text fields; spread across the full
-   dashboard width its lines become unreadable and its cards mostly empty. */
-.reading { max-width: 740px; }
-.reading .card :is(p, li) { max-width: none; }
+/* The workspace: what the step produced in a wide main column (charts need the
+   width), the Copilot's prose and the what-if forms in a side column at a
+   reading measure. Spread across one full-width column its lines became
+   unreadable; confined to one narrow column, half the screen sat empty. Below
+   the breakpoint both columns dissolve and the cards interleave back into
+   reading order: explanation, results, record, challenge, what-if, outcome,
+   interpretation. */
+.ws-layout { display: flex; flex-direction: column; }
+.ws-main, .ws-side { display: contents; }
+.ws-o1 { order: 1; } .ws-o2 { order: 2; } .ws-o3 { order: 3; } .ws-o4 { order: 4; }
+.ws-o5 { order: 5; } .ws-o6 { order: 6; } .ws-o7 { order: 7; }
+@media (min-width: 1180px) {
+  .ws-layout {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
+    gap: var(--space-4); align-items: start;
+  }
+  .ws-main, .ws-side { display: block; min-width: 0; }
+}
 
 /* A whole screen the tier does not carry. Constrained, so it reads as a
    deliberate state rather than a notice stranded in an empty column. */
@@ -563,9 +626,9 @@ main { width: 100%; min-width: 0; flex: 1; }
      the first two of four tracks with the rest of the row empty. */
   grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
 }
-/* ...and a card never grows past a readable measure, so a lone card in a
-   1400px row does not become one very long line. */
-.grid > .card { max-width: 640px; }
+/* ...and a lone card never grows past a readable measure, so it does not
+   become one very long line across a 1400px row. Two or more share the row. */
+.grid > .card:only-child { max-width: 640px; }
 .grid-2 { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
 .grid > *, .grid-2 > * { min-width: 0; }
 /* A layout container carries no bottom margin of its own, so two of them in a
@@ -798,6 +861,7 @@ legend { font-size: 13px; font-weight: 650; padding: 0 var(--space-2); color: va
   background: var(--surface-sunken);
 }
 .empty h3 { color: var(--ink-soft); }
+.empty h1 { font-size: 20px; margin: 0 0 var(--space-2); color: var(--ink-soft); }
 .empty p { max-width: 46ch; margin-left: auto; margin-right: auto; }
 
 /* ---------------------------------------------------------------- tables -- */
@@ -1115,7 +1179,7 @@ pre {
   pointer-events: none;
 }
 .hero > * { position: relative; z-index: 1; }
-.hero h2 {
+.hero h1 {
   color: #fff;
   /* Scales with the viewport rather than stepping at one breakpoint. */
   font-size: clamp(32px, 5vw, 72px);
@@ -1190,7 +1254,13 @@ pre {
   gap: var(--space-4); flex-wrap: wrap;
   margin: 0 0 var(--space-5);
 }
-.section-head h3 { font-size: 36px; margin: 0; letter-spacing: -0.028em; }
+.section-head h2 { font-size: 36px; margin: 0; letter-spacing: -0.028em; }
+/* Under a page title a section heading sits one step below it; only the hero
+   screen, whose headline is far larger, keeps the display size. */
+.container:has(> .page-head) .section-head h2 { font-size: 26px; letter-spacing: -0.022em; }
+/* A section heading placed straight on the page (not inside a band, which
+   brings its own padding) needs air above it. */
+.container:has(> .page-head) > .section-head { margin-top: var(--space-5); }
 .section-head .sub { font-size: 15px; color: var(--muted); margin: var(--space-2) 0 0; max-width: 78ch; }
 
 /* Centred variant, as the reference uses on its first section. */
@@ -1205,7 +1275,8 @@ pre {
 .section-head.centred .sub { margin-inline: auto; }
 
 @media (max-width: 1080px) {
-  .section-head h3 { font-size: 25px; }
+  .section-head h2 { font-size: 25px; }
+  .container:has(> .page-head) .section-head h2 { font-size: 22px; }
   .section-head .sub { font-size: 14px; }
 }
 
@@ -1259,3 +1330,169 @@ pre {
   color: var(--accent);
 }
 .tag.neutral { background: var(--surface-sunken); color: var(--muted); }
+
+
+/* --------------------------------------------------------------- figures -- */
+.figure { padding-block: var(--space-4); border-top: 1px solid var(--line); }
+.figure:first-child { border-top: 0; padding-top: 0; }
+.figure-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-3);
+}
+.figure-head h4 { margin: 0 0 var(--space-1); font-size: 15px; }
+.figure-head .hint { margin: 0; max-width: 62ch; }
+
+/* A two-option switch: chart or table. */
+.segmented { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); overflow: hidden; }
+.segmented button {
+  font-size: 12.5px; padding: 4px 11px; border: 0; border-radius: 0;
+  background: var(--surface); color: var(--muted); box-shadow: none;
+}
+.segmented button + button { border-left: 1px solid var(--line-strong); }
+.segmented button[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.segmented button:hover:not(:disabled) { background: var(--surface-sunken); color: var(--ink); }
+
+.viz { position: relative; }
+.viz svg { display: block; overflow: visible; }
+.viz text { font-family: var(--font); }
+/* Recessive chrome: hairline, solid, one step off the surface. */
+.viz-grid { stroke: var(--line); stroke-width: 1; }
+.viz-axis { stroke: var(--line-strong); stroke-width: 1; }
+.viz-crosshair { stroke: var(--muted-soft); stroke-width: 1; }
+.viz-threshold { stroke: var(--muted); stroke-width: 1; }
+.viz-tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+/* Text wears ink, never the series colour; a surface halo keeps it legible
+   where it crosses marks. */
+.viz-label, .viz-centroid {
+  fill: var(--ink-soft); font-size: 11.5px; font-weight: 600;
+  paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round;
+}
+.viz-centroid { font-size: 13px; fill: var(--ink); }
+/* A 2px surface ring keeps a marker readable where it crosses a line. */
+.viz-ring { stroke: var(--surface); stroke-width: 2; }
+.viz-node { fill: var(--surface); stroke: var(--ink-soft); stroke-width: 1.5; }
+.viz-mark:hover { filter: brightness(1.08); }
+
+.viz-tip {
+  position: absolute; z-index: 5; pointer-events: none;
+  transform: translate(12px, -110%);
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow); padding: 6px 10px; font-size: 12.5px; white-space: nowrap;
+}
+.viz-tip strong { font-weight: 650; font-variant-numeric: tabular-nums; }
+.viz-tip-sub { color: var(--muted); font-size: 11.5px; }
+
+.viz-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 var(--space-2); padding: 0; font-size: 12.5px; color: var(--ink-soft); }
+.viz-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.viz-legend .swatch { width: 12px; height: 10px; border-radius: 2px; flex: none; }
+.viz-legend .swatch.dot { width: 9px; height: 9px; border-radius: 50%; }
+
+.viz-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--space-2); }
+.viz-chips button {
+  font-size: 12px; padding: 3px 10px; border-radius: var(--radius-pill);
+  background: var(--surface); color: var(--ink-soft); border-color: var(--line-strong); box-shadow: none;
+}
+.viz-chips button[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-line); }
+.viz-chips button:hover:not(:disabled) { background: var(--surface-sunken); color: var(--ink); border-color: var(--muted-soft); }
+
+.viz-scale { display: flex; align-items: center; gap: 8px; margin-bottom: var(--space-2); }
+.viz-scale-bar {
+  width: 140px; height: 8px; border-radius: 2px;
+  background: linear-gradient(to right, color-mix(in srgb, var(--viz-1) 8%, transparent), var(--viz-1));
+}
+
+/* Stat tiles: when the form is a number, the number is the chart. */
+.stat-row { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); }
+.stat { background: var(--surface-sunken); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); }
+.stat-label { font-size: 12px; color: var(--muted); }
+.stat-value { font-size: 22px; font-weight: 650; letter-spacing: -0.02em; color: var(--ink); }
+.stat-note { font-size: 11.5px; color: var(--muted); }
+.stat-row .stat-wide { grid-column: 1 / -1; margin: 0; }
+
+/* ------------------------------------------------------- report an issue -- */
+.issue-trigger {
+  background: none; border: 0; box-shadow: none; padding: 0;
+  color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px;
+  cursor: pointer;
+}
+.issue-trigger:hover:not(:disabled) { background: none; color: inherit; opacity: .8; }
+.issue-dialog {
+  /* Mounted inside the footer's release stamp: reset what it would inherit. */
+  font-family: var(--font); font-size: 14px; line-height: 1.5; letter-spacing: normal; text-transform: none;
+  text-align: left; white-space: normal;
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow);
+  padding: var(--space-4);
+}
+.issue-dialog::backdrop { background: rgb(8 16 28 / .45); }
+.issue-dialog-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+.issue-dialog-head h3 { margin: 0; }
+.issue-dialog form { display: grid; gap: var(--space-2); }
+.issue-dialog textarea, .issue-dialog select, .issue-dialog button { font-family: inherit; }
+.issue-dialog textarea { width: 100%; resize: vertical; font: inherit; }
+.issue-dialog .check { display: flex; align-items: center; gap: 8px; font-weight: 400; }
+.issue-message { max-width: 42ch; white-space: pre-wrap; }
+
+/* Admin: small count tables side by side, stacking when narrow. */
+.admin-counts { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); margin-block: var(--space-4); }
+.admin-counts h4 { margin: 0 0 var(--space-2); font-size: 13px; color: var(--muted); font-weight: 600; }
+
+/* A confirmation, in the success ink; it is always worded, never colour alone. */
+.success { color: var(--ok); font-weight: 500; }
+
+/* ----------------------------------------------- dataset inspector brief -- */
+.brief-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.brief-head h3 { margin: 0; }
+.brief-section h4, .brief-analyses h4 { margin: var(--space-4) 0 var(--space-1); font-size: 14px; }
+.brief-section p { margin: 0; max-width: 80ch; }
+.brief-analyses { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
+.brief-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.brief-list li { display: flex; gap: 8px; align-items: baseline; }
+.brief-mark { flex: none; width: 1.1em; text-align: center; font-weight: 700; }
+.brief-mark.ok { color: var(--ok); }
+.brief-mark.no { color: var(--muted); }
+.brief-sources { margin-top: var(--space-4); }
+.admin-save { margin-block: var(--space-3) var(--space-5); }
+
+/* Small multiples: one small map per category, each opening the full map. */
+.viz-multiples { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr)); }
+.viz-multiple {
+  display: grid; gap: 4px; padding: 8px; text-align: left; cursor: pointer;
+  background: var(--surface); color: var(--ink-soft); font-size: 12.5px; font-weight: 600;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: none;
+}
+.viz-multiple:hover:not(:disabled) { background: var(--surface); color: var(--ink); border-color: var(--accent-line); }
+.viz-multiple svg { width: 100%; height: auto; display: block; }
+.viz-multiple .muted { font-weight: 400; }
+
+/* ------------------------------------------------------ stacked tables -- */
+/* On a phone a wide table becomes one labelled block per row, so no column
+   is pushed off-screen. The header stays in the accessibility tree. */
+@media (max-width: 640px) {
+  table.stacked thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  table.stacked, table.stacked tbody, table.stacked tr, table.stacked td { display: block; width: 100%; }
+  table.stacked tr { padding: var(--space-3) 0; border-bottom: 1px solid var(--line); }
+  table.stacked tr:last-child { border-bottom: 0; }
+  table.stacked td { border: 0; padding: 3px 0; display: grid; grid-template-columns: 7em minmax(0, 1fr); gap: var(--space-3); align-items: baseline; }
+  /* Long cells read label-above-value at full width instead of as a sliver. */
+  table.stacked td.stack-block { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  table.stacked td::before {
+    content: attr(data-label); color: var(--muted); font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .05em;
+  }
+}
+
+/* ------------------------------------------------------ dataset selector -- */
+/* auto-fill keeps every card one width, whichever group it sits in. */
+.dataset-grid { grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); }
+.dataset-state { margin-top: auto; padding-top: var(--space-3); }
+
+/* ------------------------------------------------------- access options -- */
+.tier-adds-label { margin: var(--space-3) 0 var(--space-1); }
+.tier-adds { margin: 0 0 var(--space-3); padding-left: 1.2em; }
+.tier-adds li + li { margin-top: 2px; }
+
+/* ---------------------------------------------------------------- reports -- */
+.report-run { min-width: 17em; }

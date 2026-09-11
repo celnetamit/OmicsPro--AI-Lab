@@ -32,7 +32,7 @@ const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin
 function NotFound() {
   return (
     <div className="empty">
-      <h3>That screen does not exist</h3>
+      <h1>That screen does not exist</h1>
       <p>The address may have been mistyped, or the link may be from an older release.</p>
       <a className="button secondary" href="/">Back to Lab Home</a>
     </div>

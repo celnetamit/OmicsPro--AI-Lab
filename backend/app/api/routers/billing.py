@@ -18,18 +18,16 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import current_tier, current_user
 from app.constants import TIER_LABELS, AccessTier
+from app.core import commercial
 from app.core import entitlements as ent
 from app.db import get_db
 from app.models import Entitlement, Purchase, Report, User
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
 
-#: Term and price per purchasable tier. Amounts are in minor currency units so
-#: no floating point money reaches the database.
-CATALOGUE = {
-    AccessTier.MODERATE: {"term_days": 90, "amount_minor_units": 499000, "currency": "INR"},
-    AccessTier.EXPERT: {"term_days": 90, "amount_minor_units": 1299000, "currency": "INR"},
-}
+#: Price and term per tier are no longer constants here: spec 12 forbids
+#: hard-coding commercial values in the scientific application, so they are read
+#: from admin settings on every request. See app.core.commercial.
 
 
 class CheckoutRequest(BaseModel):
@@ -44,9 +42,11 @@ class ActivateRequest(BaseModel):
 
 
 @router.get("/catalogue")
-def catalogue(tier: AccessTier = Depends(current_tier)) -> dict:
+def catalogue(
+    tier: AccessTier = Depends(current_tier), db: Session = Depends(get_db)
+) -> dict:
     rows = []
-    for candidate, terms in CATALOGUE.items():
+    for candidate, terms in commercial.catalogue(db).items():
         rows.append(
             {
                 "tier": candidate.value,
@@ -77,7 +77,8 @@ def checkout(
     tier: AccessTier = Depends(current_tier),
     db: Session = Depends(get_db),
 ) -> dict:
-    if payload.tier not in CATALOGUE:
+    offer = commercial.catalogue(db)
+    if payload.tier not in offer:
         raise HTTPException(422, f"{TIER_LABELS[payload.tier]} access is not purchasable.")
     if payload.tier.rank <= tier.rank:
         raise HTTPException(
@@ -86,7 +87,7 @@ def checkout(
             f"includes everything in {TIER_LABELS[payload.tier]}.",
         )
 
-    terms = CATALOGUE[payload.tier]
+    terms = offer[payload.tier]
     purchase = Purchase(
         user_id=user.id,
         tier=payload.tier,

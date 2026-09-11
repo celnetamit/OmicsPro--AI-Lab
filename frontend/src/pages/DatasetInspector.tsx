@@ -3,6 +3,22 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError, get, post } from '../lib/api'
 import { PageHeader, Skeleton } from '../components/ui'
 import type { RunSummary } from '../lib/types'
+import { VALIDATION_LABEL, formatDate, humanise, named } from '../lib/labels'
+
+const PROVENANCE_LABEL: Record<string, string> = {
+  source: 'Source',
+  accession: 'Accession',
+  citation: 'Citation',
+  license: 'Licence',
+  importedAt: 'Imported',
+  validationStatus: 'Validation',
+}
+
+function provenanceValue(key: string, value: unknown): string {
+  if (key === 'importedAt') return formatDate(String(value))
+  if (key === 'validationStatus') return named(VALIDATION_LABEL, String(value))
+  return value === null || value === undefined || value === '' ? '—' : String(value)
+}
 
 interface Inspection {
   shape: number[]
@@ -33,10 +49,87 @@ interface Detail {
   unavailableReason?: string
 }
 
+interface Analysis {
+  label: string
+  reason: string
+}
+
+/** The Copilot's grounded explanation of the dataset (spec 9.6). */
+interface Brief {
+  available: boolean
+  reason?: string
+  sections?: { key: string; title: string; text: string }[]
+  validAnalyses?: Analysis[]
+  notSupported?: Analysis[]
+  evidence?: { id: string; title: string; reference: string }[]
+}
+
+function DatasetBrief({ brief }: { brief: Brief }) {
+  if (!brief.available) return null
+  const notSupported = brief.notSupported ?? []
+  return (
+    <div className="card brief">
+      <div className="brief-head">
+        <h3>About this dataset</h3>
+        <span className="badge">Omics Copilot</span>
+      </div>
+      <p className="hint">
+        Composed from this dataset's recorded values: every number here is read from the
+        object, not written by the Copilot.
+      </p>
+      {brief.sections?.map((section) => (
+        <section key={section.key} className="brief-section">
+          <h4>{section.title}</h4>
+          <p>{section.text}</p>
+        </section>
+      ))}
+      <div className="brief-analyses">
+        <div>
+          <h4>Analyses this design supports</h4>
+          <ul className="brief-list">
+            {(brief.validAnalyses ?? []).map((analysis) => (
+              <li key={analysis.label}>
+                <span className="brief-mark ok" aria-hidden="true">✓</span>
+                <span>
+                  {analysis.label}
+                  {analysis.reason ? <span className="hint"> — {analysis.reason}</span> : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        {notSupported.length ? (
+          <div>
+            <h4>Not supported by this design</h4>
+            <ul className="brief-list">
+              {notSupported.map((analysis) => (
+                <li key={analysis.label}>
+                  <span className="brief-mark no" aria-hidden="true">✕</span>
+                  <span>
+                    {analysis.label}
+                    <span className="hint"> — {analysis.reason}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+      {brief.evidence?.length ? (
+        <p className="hint brief-sources">
+          Sources:{' '}
+          {brief.evidence.map((source) => `${source.title} (${source.reference})`).join('; ')}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 export function DatasetInspector() {
   const { datasetId } = useParams()
   const navigate = useNavigate()
   const [detail, setDetail] = useState<Detail | null>(null)
+  const [brief, setBrief] = useState<Brief | null>(null)
   const [modules, setModules] = useState<ModuleRow[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -45,6 +138,10 @@ export function DatasetInspector() {
     void get<Detail>(`/api/datasets/${datasetId}`)
       .then(setDetail)
       .catch((e: ApiError) => setError(e.message))
+    //: The explanation is an enhancement: the inspector stands without it.
+    void get<Brief>(`/api/datasets/${datasetId}/brief`)
+      .then(setBrief)
+      .catch(() => setBrief(null))
     void get<{ availableModules: ModuleRow[] }>('/api/program/home').then((home) =>
       setModules(home.availableModules ?? []),
     )
@@ -103,8 +200,8 @@ export function DatasetInspector() {
             <tbody>
               {Object.entries(detail.provenance).map(([key, value]) => (
                 <tr key={key}>
-                  <th>{key}</th>
-                  <td>{String(value)}</td>
+                  <th>{PROVENANCE_LABEL[key] ?? humanise(key)}</th>
+                  <td>{provenanceValue(key, value)}</td>
                 </tr>
               ))}
             </tbody>
@@ -117,6 +214,8 @@ export function DatasetInspector() {
           {limitation}
         </p>
       ))}
+
+      {brief ? <DatasetBrief brief={brief} /> : null}
 
       {detail.inspection ? (
         <>

@@ -5,19 +5,23 @@ reaches a pipeline. Expert upload is a Phase 3 feature, but the validator ships
 in Phase 1 because guided and trial datasets pass through the same gate.
 """
 
+import math
 import os
 import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence
 
 from app.constants import AnalysisTrack
+from app.governance.ingest import logical_extension
 
 #: Analysis-ready formats only. Raw sequencing is documented future architecture
 #: and is deliberately absent (spec 6).
 ALLOWED_FORMATS: Dict[AnalysisTrack, List[str]] = {
     AnalysisTrack.FOUNDATION: [".csv", ".tsv", ".npz", ".rds", ".rdata"],
     AnalysisTrack.CORE: [".h5ad", ".h5", ".mtx", ".npz", ".rds", ".rdata"],
-    AnalysisTrack.ADVANCED: [".h5ad", ".npz", ".rds", ".rdata"],
+    #: Space Ranger's filtered matrix (.h5, or .mtx with its features and
+    #: barcodes) is read together with the section's tissue positions.
+    AnalysisTrack.ADVANCED: [".h5ad", ".h5", ".mtx", ".npz", ".rds", ".rdata"],
 }
 
 REJECTED_FORMATS = {".fastq", ".fq", ".bam", ".cram", ".sam", ".gz"}
@@ -29,6 +33,18 @@ REQUIRED_METADATA: Dict[AnalysisTrack, List[str]] = {
 }
 
 REQUIRED_PROVENANCE = ["source", "accession", "license"]
+
+#: The field that names one observation, and what an observation is called.
+OBSERVATION_ID = {
+    AnalysisTrack.FOUNDATION: "sample_id",
+    AnalysisTrack.CORE: "cell_id",
+    AnalysisTrack.ADVANCED: "spot_id",
+}
+UNIT_NAME = {
+    AnalysisTrack.FOUNDATION: "sample",
+    AnalysisTrack.CORE: "cell",
+    AnalysisTrack.ADVANCED: "spot",
+}
 
 #: Patterns that indicate identifiable patient information. A hit blocks the
 #: upload outright rather than being reported as a warning.
@@ -78,7 +94,9 @@ def validate_upload(
 ) -> ValidationResult:
     """Full ingestion gate. Every check runs so the learner sees all problems."""
     result = ValidationResult()
-    extension = os.path.splitext(filename.lower())[1]
+    #: A compressed file is judged by what it holds: reads.fastq.gz is raw
+    #: sequencing, matrix.mtx.gz is an analysis-ready matrix.
+    extension = logical_extension(filename)
 
     if extension in REJECTED_FORMATS:
         result.fail(
@@ -146,19 +164,69 @@ def _validate_metadata(
             f"Every sample needs {', '.join(missing_fields)}.",
         )
 
-    ids = [row.get("sample_id") for row in rows if row.get("sample_id")]
-    if len(set(ids)) != len(ids):
-        result.fail("duplicate_sample_ids", "Sample identifiers must be unique.")
+    if track is AnalysisTrack.FOUNDATION:
+        ids = [row.get("sample_id") for row in rows if row.get("sample_id")]
+        if len(set(ids)) != len(ids):
+            result.fail("duplicate_sample_ids", "Sample identifiers must be unique.")
+    else:
+        #: A sample contributes many cells or spots, so here it is the cell or
+        #: spot identifier that must be unique, not the sample's.
+        field_name = OBSERVATION_ID[track]
+        ids = [row.get(field_name) for row in rows if row.get(field_name)]
+        if len(set(ids)) != len(ids):
+            result.fail(
+                "duplicate_observation_ids",
+                f"Each {UNIT_NAME[track]} needs a unique {field_name}.",
+            )
+
+    if track is AnalysisTrack.ADVANCED and not all(
+        _is_number(row.get("x")) and _is_number(row.get("y")) for row in rows
+    ):
+        result.fail(
+            "missing_coordinates",
+            "Every spot needs tissue coordinates (x and y). Supply the tissue positions "
+            "file, or an .h5ad with coordinates in obsm['spatial'].",
+        )
 
     if n_matrix_columns is not None and n_matrix_columns != len(rows):
         result.fail(
             "matrix_metadata_mismatch",
-            f"The matrix describes {n_matrix_columns} samples but the metadata "
+            f"The matrix describes {n_matrix_columns} {UNIT_NAME[track]}s but the metadata "
             f"has {len(rows)} rows.",
         )
 
-    result.summary["n_samples"] = len(rows)
-    _check_design(result, rows)
+    if track is AnalysisTrack.FOUNDATION:
+        result.summary["n_samples"] = len(rows)
+        _check_design(result, rows)
+    else:
+        #: Replication is counted in samples, never in cells or spots.
+        per_sample = _one_row_per_sample(rows)
+        result.summary["n_samples"] = len(per_sample)
+        result.summary["n_observations"] = len(rows)
+        _check_design(result, per_sample)
+
+
+def _one_row_per_sample(rows: Sequence[dict]) -> List[dict]:
+    first: Dict[Any, dict] = {}
+    for row in rows:
+        first.setdefault(row.get("sample_id"), row)
+    return list(first.values())
+
+
+def _is_number(value: Any) -> bool:
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def validate_metadata(
+    track: AnalysisTrack, rows: Sequence[dict], n_observations: Optional[int] = None
+) -> ValidationResult:
+    """The metadata checks alone, for rows already matched to a matrix."""
+    result = ValidationResult()
+    _validate_metadata(result, track, rows, n_observations)
+    return result
 
 
 def _check_design(result: ValidationResult, rows: Sequence[dict]) -> None:

@@ -9,6 +9,17 @@ from sqlalchemy.orm import sessionmaker
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Test-suite configuration, set before app.settings is imported.
+import tempfile  # noqa: E402
+
+#: Hermetic by construction. Without this the app's startup (which reaps
+#: orphaned runs) queried the developer's own omicslab.db, and the settings read
+#: whatever .env the machine carries — on this one, production mode and an
+#: expert open-access tier. A suite whose result depends on a developer's local
+#: files is not testing the code.
+_TEST_DB_DIR = tempfile.mkdtemp(prefix="omicslab-tests-")
+os.environ["OMICSLAB_DATABASE_URL"] = f"sqlite:///{_TEST_DB_DIR}/app.db"
+os.environ["OMICSLAB_ENVIRONMENT"] = "development"
+os.environ["OMICSLAB_OPEN_ACCESS_TIER"] = "basic"
 #: Runs complete before the response returns, so a test can assert on results.
 os.environ.setdefault("OMICSLAB_RUN_EXECUTION_MODE", "inline")
 #: The production work factor makes the suite spend minutes hashing passwords.

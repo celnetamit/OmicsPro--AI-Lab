@@ -273,8 +273,17 @@ def test_the_rate_limiter_is_per_client_and_expires():
 
 
 # ------------------------------------------------------------- open access --
-def test_the_lab_opens_without_credentials(client):
-    """Open access: a visitor gets a real, enrolled, Basic-tier session."""
+def test_the_lab_opens_without_credentials(client, monkeypatch):
+    """Open access: a visitor gets a real, enrolled session.
+
+    The tier is pinned here rather than assumed: it is configurable, and this
+    machine's own .env raises it for evaluation. What this test defends is that
+    the session exists and belongs to someone, not which tier it holds — that
+    is covered by the open-access tier tests below.
+    """
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "open_access_tier", "basic")
     response = client.post("/api/auth/guest")
     assert response.status_code == 200
     token = response.json()["access_token"]
@@ -320,3 +329,60 @@ def test_open_access_can_be_turned_off_to_restore_the_sign_in_screen(client, mon
 
     monkeypatch.setattr(settings, "open_access", False)
     assert client.post("/api/auth/guest").status_code == 404
+
+
+# ----------------------------------------------- open-access tier for testing --
+def test_the_open_session_holds_basic_by_default(client, monkeypatch):
+    """The value a public deployment must have.
+
+    Asserted against the default in code rather than the running settings
+    object, which reads whatever .env the operator has on the machine — here,
+    an evaluation deployment set to expert.
+    """
+    from app.settings import Settings, settings
+
+    assert Settings(_env_file=None).open_access_tier == "basic"
+
+    monkeypatch.setattr(settings, "open_access_tier", "basic")
+    token = client.post("/api/auth/guest").json()["access_token"]
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
+    assert me["accessTier"] == "basic"
+
+
+def test_the_open_session_can_be_raised_for_evaluation(client, monkeypatch):
+    """An evaluation deployment opens the paid features on the shared account."""
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "open_access_tier", "expert")
+    token = client.post("/api/auth/guest").json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    assert client.get("/api/auth/me", headers=headers).json()["accessTier"] == "expert"
+
+    #: It is a grant, not a bypass: the entitlement machinery is what opened it.
+    matrix = client.get("/api/entitlements/matrix", headers=headers).json()
+    locked = [f for f in matrix["features"] if f["available"] and not f["unlocked"]]
+    assert locked == []
+
+
+def test_raising_the_open_tier_does_not_touch_registered_learners(client, monkeypatch):
+    """A real account's tier comes from its own entitlements, never this switch."""
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "open_access_tier", "expert")
+    registered = client.post(
+        "/api/auth/register",
+        json={"email": "real-learner@example.com", "password": "orbital-sequencer-7"},
+    ).json()["access_token"]
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {registered}"}).json()
+    assert me["accessTier"] == "basic"
+
+
+def test_an_unknown_open_access_tier_is_refused_at_startup():
+    import pytest
+    from pydantic import ValidationError
+
+    from app.settings import Settings
+
+    with pytest.raises(ValidationError) as exc:
+        Settings(open_access_tier="unlimited", _env_file=None)
+    assert "OMICSLAB_OPEN_ACCESS_TIER" in str(exc.value)

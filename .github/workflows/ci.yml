@@ -22,11 +22,12 @@ jobs:
       - run: pip install -r backend/requirements.txt
       - name: Clustering runtimes
         # The guided Core, Advanced and communication pipelines cluster with
-        # leidenalg, so the tests that assert a run completes need it present.
+        # leidenalg and lay out cells with UMAP, so the tests that assert a run
+        # completes need both present.
         # Without it those runs fail cleanly naming the missing method — correct
         # behaviour, but not what those tests are checking. Versions come from
         # requirements-science.txt so the locked pins stay in one place.
-        run: grep -E '^(igraph|leidenalg)==' backend/requirements-science.txt | xargs pip install
+        run: grep -E '^(igraph|leidenalg|umap-learn|pynndescent|anndata)==' backend/requirements-science.txt | xargs pip install
       - name: Naming rule and parameter registry guardrails
         run: python scripts/lint_naming.py
       - name: Tests

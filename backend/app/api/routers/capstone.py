@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import current_user, require_feature
 from app.constants import AnalysisTrack, RunStatus
 from app.copilot import evidence
+from app.core.figures import FIGURE_CATALOGUE
 from app.db import get_db
 from app.models import (
     AiInteraction,
@@ -38,97 +39,8 @@ router = APIRouter(
     dependencies=[Depends(require_feature("capstone_workspace"))],
 )
 
-#: Figures the platform can offer, each bound to the output namespace and key a
-#: pipeline publishes. A figure with no computed output behind it is not listed.
-FIGURE_CATALOGUE: List[dict] = [
-    {
-        "id": "qc_summary",
-        "label": "Quality control summary",
-        "namespace": "qc",
-        "kind": "summary",
-        "caption": "Cells or spots retained and removed under the recorded thresholds.",
-    },
-    {
-        "id": "variance_ratio",
-        "label": "Principal component variance",
-        "namespace": "pca",
-        "key": "variance_ratio",
-        "kind": "line",
-        "caption": "Variance explained by each retained component.",
-    },
-    {
-        "id": "cluster_sizes",
-        "label": "Cluster sizes",
-        "namespace": "cluster",
-        "key": "cluster_sizes",
-        "kind": "bar",
-        "caption": "Cells per cluster at the recorded resolution.",
-    },
-    {
-        "id": "composition",
-        "label": "Cell type composition by sample",
-        "namespace": "composition",
-        "key": "proportions",
-        "kind": "stacked_bar",
-        "caption": "Population proportions per sample. Proportions are compositional.",
-    },
-    {
-        "id": "de_volcano",
-        "label": "Differential expression",
-        "namespace": "de",
-        "key": "table",
-        "kind": "volcano",
-        "caption": "Effect size against evidence for the recorded contrast.",
-    },
-    {
-        "id": "pathway_table",
-        "label": "Pathway enrichment",
-        "namespace": "pathway",
-        "key": "table",
-        "kind": "table",
-        "caption": "Enriched gene sets against the detected-gene background.",
-    },
-    {
-        "id": "sample_structure",
-        "label": "Sample structure",
-        "namespace": "exploratory",
-        "key": "coordinates",
-        "kind": "scatter",
-        "caption": "Samples in principal component space, coloured by annotation.",
-    },
-    {
-        "id": "gene_maps",
-        "label": "Tissue gene maps",
-        "namespace": "svg",
-        "key": "gene_maps",
-        "kind": "spatial_map",
-        "caption": "Expression of the most spatially structured genes across the section.",
-    },
-    {
-        "id": "domain_map",
-        "label": "Spatial domains",
-        "namespace": "domains",
-        "key": "assignments",
-        "kind": "spatial_map",
-        "caption": "Domain assignment per spot. A domain is a model output, not an annotated region.",
-    },
-    {
-        "id": "neighborhood",
-        "label": "Neighbourhood adjacency",
-        "namespace": "neighborhood",
-        "key": "table",
-        "kind": "table",
-        "caption": "Domain pairs adjacent more often than chance predicts.",
-    },
-    {
-        "id": "interaction_network",
-        "label": "Candidate communication network",
-        "namespace": "interactions",
-        "key": "table",
-        "kind": "network",
-        "caption": "Inferred candidate ligand-receptor interactions, not demonstrated signalling.",
-    },
-]
+#: The figure catalogue is shared with the analysis workspace, so a figure
+#: means the same thing on both screens. See app.core.figures.
 
 
 class CapstoneRequest(BaseModel):

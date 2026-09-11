@@ -164,7 +164,7 @@ _STEPS: List[StepKnowledge] = [
             "the {{computed:pathway.n_background_genes}} genes detected in this "
             "matrix, {{computed:pathway.n_significant_sets}} sets passed an "
             "adjusted p-value below {{param:pathway.fdr}}. Highest ranked: "
-            "{{computed:pathway.top_sets}}."
+            "{{computed:pathway.top_sets|none}}."
         ),
         what_to_observe=(
             "Check how many of your input genes actually drive each enriched set. "
@@ -273,6 +273,34 @@ _STEPS: List[StepKnowledge] = [
         caveats=[
             "A two-dimensional embedding preserves local neighbourhoods, not "
             "distances. Gaps and cluster sizes in the plot are not quantitative."
+        ],
+    ),
+    StepKnowledge(
+        step="embedding",
+        track=AnalysisTrack.CORE,
+        title="UMAP layout",
+        purpose=(
+            "Draw the neighbour graph in two dimensions so its structure can be "
+            "looked at. The layout is for seeing, not for measuring: clustering "
+            "reads the graph, never these coordinates."
+        ),
+        explain_template=(
+            "UMAP placed {{computed:umap.n_cells_embedded}} cells using "
+            "{{param:sc.neighbors.k}} neighbours each and a minimum distance of "
+            "{{param:sc.umap.min_dist}}; {{computed:umap.n_cells_displayed}} of them "
+            "are drawn."
+        ),
+        what_to_observe=(
+            "Look for groups of cells that sit together, and then check them "
+            "against the clusters and their markers. A group that looks separate "
+            "here is only a candidate population until markers support it."
+        ),
+        evidence_source_ids=["mcinnes2018", "scanpy_docs"],
+        caveats=[
+            "UMAP preserves local neighbourhoods, not distances. How far apart two "
+            "groups sit and how much area one covers are properties of the layout.",
+            "Changing the minimum distance changes the picture without changing "
+            "the neighbour graph or the clusters.",
         ],
     ),
     StepKnowledge(
@@ -393,7 +421,7 @@ _STEPS: List[StepKnowledge] = [
             "Testing {{computed:pathway.n_input_genes}} genes against curated sets "
             "with a background of {{computed:pathway.n_background_genes}} detected "
             "genes returned {{computed:pathway.n_significant_sets}} sets below "
-            "{{param:pathway.fdr}}. Highest ranked: {{computed:pathway.top_sets}}."
+            "{{param:pathway.fdr}}. Highest ranked: {{computed:pathway.top_sets|none}}."
         ),
         what_to_observe=(
             "Compare enriched sets between cell types. A response shared across "
@@ -448,7 +476,7 @@ _STEPS: List[StepKnowledge] = [
             "combinations cleared the detection floor and were tested; "
             "{{computed:interactions.n_significant}} passed an adjusted p-value "
             "below {{param:comm.interaction_fdr}}. Highest ranked: "
-            "{{computed:interactions.top_interactions}}."
+            "{{computed:interactions.top_interactions|none}}."
         ),
         what_to_observe=(
             "Check whether the source and target populations could plausibly meet "
@@ -752,7 +780,7 @@ _STEPS: List[StepKnowledge] = [
             "genes against curated sets with a background of "
             "{{computed:pathway.n_background_genes}} detected genes returned "
             "{{computed:pathway.n_significant_sets}} sets below "
-            "{{param:pathway.fdr}}. Highest ranked: {{computed:pathway.top_sets}}."
+            "{{param:pathway.fdr}}. Highest ranked: {{computed:pathway.top_sets|none}}."
         ),
         what_to_observe=(
             "Enrichment here inherits the limits of the region comparison it was "

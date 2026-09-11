@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import current_tier, current_user
 from app.constants import ACTIVE_PHASE, AccessTier
-from app.core.access import ensure_basic_auto_grant
+from app.core.access import ensure_basic_auto_grant, ensure_open_access_tier
 from app.core import ratelimit
 from app.core.security import (
     PasswordPolicyError,
@@ -99,9 +99,13 @@ def guest(request: Request, db: Session = Depends(get_db)) -> TokenResponse:
     """Open the Live Lab without credentials.
 
     Every run, interpretation and report belongs to a user, so an open-access
-    visitor is still a real account — one shared, enrolled, Basic-tier account
-    rather than an anonymous request with no owner. The password is random and
-    unusable: the account is reachable only through this endpoint.
+    visitor is still a real account — one shared, enrolled account rather than
+    an anonymous request with no owner. The password is random and unusable:
+    the account is reachable only through this endpoint.
+
+    It carries Basic unless ``OMICSLAB_OPEN_ACCESS_TIER`` raises it, which an
+    evaluation deployment uses to exercise the paid features. That is a grant,
+    not a bypass: every entitlement check still runs against it.
 
     Disabled when ``OMICSLAB_OPEN_ACCESS`` is false, which is how the sign-in
     screen is put back in front of the app.
@@ -125,6 +129,7 @@ def guest(request: Request, db: Session = Depends(get_db)) -> TokenResponse:
         db.add(Enrollment(user_id=user.id, program_code="flagship-8w", cohort="open-access"))
         db.commit()
     ensure_basic_auto_grant(db, user.id)
+    ensure_open_access_tier(db, user.id, AccessTier(settings.open_access_tier))
     return TokenResponse(access_token=create_access_token(user.id))
 
 

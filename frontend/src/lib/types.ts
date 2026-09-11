@@ -88,6 +88,8 @@ export interface RunSummary {
   errorMessage: string
   isOriginal: boolean
   parentRunId: string | null
+  startedAt?: string | null
+  finishedAt?: string | null
 }
 
 export interface ParameterDescriptor {

@@ -15,7 +15,7 @@ from app.core import entitlements as ent, parameters as params
 from app.db import get_db
 from app.governance.loader import DatasetUnavailable, load
 from app.models import Dataset, Interpretation, Perturbation, Run, User
-from app.core import jobs
+from app.core import commercial, figures, jobs
 from app.pipelines import registry, runner
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
@@ -43,7 +43,7 @@ def _quota_used(db: Session, user_id: str, track: AnalysisTrack) -> int:
 
 
 def _enforce_quota(db: Session, user_id: str, track: AnalysisTrack, tier: AccessTier) -> None:
-    limit = ent.allowance(tier).runs_per_module_per_week
+    limit = commercial.allowance_for(db, tier).runs_per_module_per_week
     if limit is None:
         return
     if _quota_used(db, user_id, track) >= limit:
@@ -108,13 +108,14 @@ def create_run(
     tier: AccessTier = Depends(current_tier),
     db: Session = Depends(get_db),
 ) -> dict:
+    from app.api.routers.datasets import KIND_FEATURE, visible_to
+
     dataset = db.get(Dataset, payload.dataset_id)
-    if dataset is None or not dataset.enabled:
+    #: Someone else's upload is reported as absent, never analysed (spec 6).
+    if dataset is None or not dataset.enabled or not visible_to(dataset, user):
         raise HTTPException(404, "Dataset not found.")
     if dataset.track != payload.track.value:
         raise HTTPException(422, "That dataset does not belong to the selected analysis track.")
-
-    from app.api.routers.datasets import KIND_FEATURE
 
     try:
         ent.assert_feature(tier, KIND_FEATURE[dataset.kind])
@@ -187,7 +188,7 @@ def create_run(
 
     try:
         data = load(dataset)
-        _attach_spatial_context(db, data, dataset, resolved, tier)
+        _attach_spatial_context(db, data, dataset, resolved, tier, user)
     except DatasetUnavailable as exc:
         run.status = RunStatus.FAILED
         run.error_message = exc.message
@@ -204,7 +205,7 @@ def create_run(
     return _serialise(run)
 
 
-def _attach_spatial_context(db, data, dataset, parameters, tier) -> None:
+def _attach_spatial_context(db, data, dataset, parameters, tier, user) -> None:
     """Resolve the optional single-cell reference for a spatial run.
 
     Reference selection is Expert-only, and an unresolvable or inaccessible
@@ -230,8 +231,11 @@ def _attach_spatial_context(db, data, dataset, parameters, tier) -> None:
                 "currentTier": tier.value,
             },
         )
+    from app.api.routers.datasets import visible_to
+
     reference = db.get(Dataset, reference_id)
-    if reference is None or not reference.enabled:
+    #: A reference is a dataset like any other: another learner's upload is absent.
+    if reference is None or not reference.enabled or not visible_to(reference, user):
         raise HTTPException(404, "The reference dataset named for mapping was not found.")
     data.meta["reference_dataset"] = reference
 
@@ -277,7 +281,7 @@ def offers(
     db: Session = Depends(get_db),
 ) -> dict:
     run = _owned_run(run_id, user, db)
-    allowance = ent.allowance(AccessTier(run.access_tier)).perturbations_per_run
+    allowance = commercial.allowance_for(db, AccessTier(run.access_tier)).perturbations_per_run
     used = len(
         db.scalars(select(Perturbation).where(Perturbation.run_id == run.id)).all()
     )
@@ -319,7 +323,7 @@ def decide(
     except pert.PerturbationNotAllowed as exc:
         raise HTTPException(422, str(exc))
 
-    allowance = ent.allowance(AccessTier(run.access_tier)).perturbations_per_run
+    allowance = commercial.allowance_for(db, AccessTier(run.access_tier)).perturbations_per_run
     if len(db.scalars(select(Perturbation).where(Perturbation.run_id == run.id)).all()) >= allowance:
         raise HTTPException(
             429,
@@ -442,6 +446,18 @@ def _serialise_perturbation(record: Perturbation) -> dict:
         "divergenceExplanation": record.divergence_explanation,
         "matchedExpectation": record.matched_expectation,
     }
+
+
+@router.get("/{run_id}/figures")
+def run_figures(
+    run_id: str, step: str, user: User = Depends(current_user), db: Session = Depends(get_db)
+) -> list:
+    """The figures a step's computed output can be drawn as (spec 10.7).
+
+    Plots are drawn from the run's own recorded outputs; nothing is recomputed
+    and a figure with no output behind it is not returned.
+    """
+    return figures.figures_for_step(_owned_run(run_id, user, db), step)
 
 
 @router.get("/{run_id}/perturbation-records")
@@ -610,7 +626,7 @@ def custom_perturbation(
     dataset = db.get(Dataset, run.dataset_id)
     try:
         data = load(dataset)
-        _attach_spatial_context(db, data, dataset, alternate.parameters, tier)
+        _attach_spatial_context(db, data, dataset, alternate.parameters, tier, user)
     except DatasetUnavailable as exc:
         alternate.status = RunStatus.FAILED
         alternate.error_message = exc.message

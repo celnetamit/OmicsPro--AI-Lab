@@ -4,6 +4,7 @@ import { ApiError, get, post, api } from '../lib/api'
 import { PageHeader, Skeleton } from '../components/ui'
 import { Gated } from '../components/Locked'
 import type { RunSummary } from '../lib/types'
+import { TRACK_NAME, named } from '../lib/labels'
 
 interface CapstoneState {
   id: string
@@ -151,22 +152,28 @@ function Workspace() {
           onChange={(e) => setState({ ...state, title: e.target.value })}
           onBlur={() => save({})}
         />
-        <label htmlFor="question">Research question</label>
-        <textarea
-          id="question"
-          disabled={locked}
-          value={state.researchQuestion}
-          onChange={(e) => setState({ ...state, researchQuestion: e.target.value })}
-          onBlur={() => save({})}
-        />
-        <label htmlFor="approach">Approach and why it fits the question</label>
-        <textarea
-          id="approach"
-          disabled={locked}
-          value={state.approach}
-          onChange={(e) => setState({ ...state, approach: e.target.value })}
-          onBlur={() => save({})}
-        />
+        <div className="grid-2">
+          <div className="field">
+            <label htmlFor="question">Research question</label>
+            <textarea
+              id="question"
+              disabled={locked}
+              value={state.researchQuestion}
+              onChange={(e) => setState({ ...state, researchQuestion: e.target.value })}
+              onBlur={() => save({})}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="approach">Approach and why it fits the question</label>
+            <textarea
+              id="approach"
+              disabled={locked}
+              value={state.approach}
+              onChange={(e) => setState({ ...state, approach: e.target.value })}
+              onBlur={() => save({})}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid-2">
@@ -191,7 +198,7 @@ function Workspace() {
                   })
                 }
               />
-              {run.id.slice(0, 8)} · {run.track}
+              {run.id.slice(0, 8)} · {named(TRACK_NAME, run.track)}
               {run.module ? ` · ${run.module}` : ''} ·{' '}
               {run.isOriginal ? 'original' : 'alternate settings'}
             </label>
@@ -246,22 +253,31 @@ function Workspace() {
           The deck collects the limitations the pipelines stamped on their outputs. These
           are the ones you judge to matter for your question.
         </p>
-        <textarea
-          disabled={locked}
-          value={state.limitations.join('\n')}
-          onChange={(e) =>
-            setState({ ...state, limitations: e.target.value.split('\n').filter(Boolean) })
-          }
-          onBlur={() => save({})}
-        />
-        <label htmlFor="future">What you would do next</label>
-        <textarea
-          id="future"
-          disabled={locked}
-          value={state.futureWork}
-          onChange={(e) => setState({ ...state, futureWork: e.target.value })}
-          onBlur={() => save({})}
-        />
+        <div className="grid-2">
+          <div className="field">
+            <label htmlFor="limitations">Limitations that matter for your question</label>
+            <textarea
+              id="limitations"
+              disabled={locked}
+              value={state.limitations.join('\n')}
+              onChange={(e) =>
+                setState({ ...state, limitations: e.target.value.split('\n').filter(Boolean) })
+              }
+              onBlur={() => save({})}
+            />
+            <p className="hint">One per line.</p>
+          </div>
+          <div className="field">
+            <label htmlFor="future">What you would do next</label>
+            <textarea
+              id="future"
+              disabled={locked}
+              value={state.futureWork}
+              onChange={(e) => setState({ ...state, futureWork: e.target.value })}
+              onBlur={() => save({})}
+            />
+          </div>
+        </div>
       </div>
 
       {error ? <p className="warning">{error}</p> : null}

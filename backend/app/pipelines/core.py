@@ -151,19 +151,60 @@ def _knn_graph(coordinates: np.ndarray, k: int) -> "sparse.csr_matrix":
     return graph.maximum(graph.T)
 
 
+#: Cells drawn on the UMAP in the workspace. The layout is computed on every
+#: cell; only the plotted sample is capped, so a large dataset does not ship tens
+#: of thousands of coordinates to the browser. The sample is seeded, so the same
+#: run always draws the same cells.
+UMAP_DISPLAY_MAX = 5000
+
+
+def _embedding(ctx: StepContext) -> Dict[str, object]:
+    """UMAP layout of the PCA neighbour space (spec 5.2: neighbours -> UMAP)."""
+    layout = locked.umap_embedding(
+        ctx.data.layers["pca"],
+        n_neighbors=ctx.parameters["sc.neighbors.k"],
+        min_dist=ctx.parameters["sc.umap.min_dist"],
+    )
+    n = layout.shape[0]
+    if n > UMAP_DISPLAY_MAX:
+        display = np.sort(np.random.default_rng(0).choice(n, UMAP_DISPLAY_MAX, replace=False))
+    else:
+        display = np.arange(n)
+    ctx.data.layers["umap"] = layout
+    ctx.data.meta["umap_display_index"] = display
+    return {
+        "n_cells_embedded": int(n),
+        "n_cells_displayed": int(display.size),
+        "x": [round(float(v), 4) for v in layout[display, 0]],
+        "y": [round(float(v), 4) for v in layout[display, 1]],
+        "min_dist": ctx.parameters["sc.umap.min_dist"],
+        "caveat": (
+            "UMAP preserves local neighbourhoods, not distances. How far apart "
+            "groups sit and how much area one covers are properties of the layout, "
+            "not measurements of the cells."
+        ),
+    }
+
+
 def _clustering(ctx: StepContext) -> Dict[str, object]:
     membership = locked.leiden_clustering(
         ctx.data.layers["connectivities"], ctx.parameters["sc.cluster.resolution"]
     )
     ctx.data.meta["clusters"] = membership
     sizes = np.bincount(membership)
-    return {
+    result = {
         "n_clusters": int(sizes.size),
         "cluster_sizes": [int(v) for v in sizes],
         "min_cluster_size": int(sizes.min()),
         "max_cluster_size": int(sizes.max()),
         "resolution": ctx.parameters["sc.cluster.resolution"],
     }
+    #: The cluster of each point the UMAP draws, in the same order, so the
+    #: layout can be read against the clusters without a second request.
+    display = ctx.data.meta.get("umap_display_index")
+    if display is not None:
+        result["embedding_membership"] = [int(membership[i]) for i in display]
+    return result
 
 
 def _marker_genes(ctx: StepContext) -> Dict[str, object]:
@@ -343,6 +384,14 @@ PIPELINE = Pipeline(
             ["sc.pca.n_comps", "sc.neighbors.k"],
             "pca",
             _dimensionality_reduction,
+        ),
+        Step(
+            "embedding",
+            "UMAP layout",
+            ["sc.umap.min_dist"],
+            "umap",
+            _embedding,
+            requires_method="embedding",
         ),
         Step(
             "clustering",

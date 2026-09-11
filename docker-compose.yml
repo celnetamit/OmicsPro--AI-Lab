@@ -40,6 +40,10 @@ services:
       # cross-origin request. This stays set for direct API clients only.
       OMICSLAB_CORS_ORIGINS: ${OMICSLAB_CORS_ORIGINS:-http://localhost:8080}
       OMICSLAB_DATA_DIR: /data
+      # Tier the shared open-access session carries. "basic" is what a real
+      # learner gets; raise it to expert on an evaluation deployment to open
+      # every paid feature without buying one.
+      OMICSLAB_OPEN_ACCESS_TIER: ${OMICSLAB_OPEN_ACCESS_TIER:-basic}
       OMICSLAB_RUN_EXECUTION_MODE: background
       OMICSLAB_RUN_WORKER_THREADS: ${OMICSLAB_RUN_WORKER_THREADS:-2}
       OMICSLAB_LOG_JSON: ${OMICSLAB_LOG_JSON:-true}
@@ -62,8 +66,11 @@ services:
     environment:
       API_UPSTREAM: http://api:8000
       PORT: 8080
+    # Coolify's proxy reaches this container over the Docker network, so on a
+    # server set WEB_BIND=127.0.0.1: otherwise the app is also published on the
+    # public address as plain HTTP. Locally the default keeps localhost:8080.
     ports:
-      - "${WEB_PORT:-8080}:8080"
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:8080"
 
 volumes:
   db-data:

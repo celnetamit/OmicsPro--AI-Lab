@@ -20,6 +20,7 @@ Two kinds of lock appear below, and the distinction matters:
 | Bulk statistics | DESeq2 negative-binomial GLM, Wald test, BH adjustment | 1.42.0 | external runtime (R worker) | awaiting SME sign-off |
 | Single-cell toolkit | Scanpy over AnnData, `.h5ad` internal object | 1.10.1 | external runtime | awaiting SME sign-off |
 | Clustering | Leiden (`leidenalg`), constrained resolution control | 0.10.2 | external runtime | awaiting SME sign-off |
+| Embedding | UMAP (`umap-learn`), 2 components, Euclidean over the PCA space, seed fixed at 0; installed version checked against the lock at run time | 0.5.12 | external runtime | awaiting SME sign-off |
 | Doublet detection | Scrublet, via `scanpy.pp.scrublet` | 1.10.1 | external runtime | awaiting SME sign-off |
 | Pathway enrichment | Hypergeometric over-representation; MSigDB Hallmark v2023.2.Hs, HGNC symbols, background = genes detected in the analysed matrix | GSEApy 1.1.3 | validated in-pipeline + locked collection | awaiting SME sign-off |
 | Cell communication | Mean ligand-receptor expression per cell type pair with a cell-label permutation null (the CellPhoneDB statistic); CellPhoneDB v5 curated interactions | communication-1.0.0 | validated in-pipeline + locked database | awaiting SME sign-off |

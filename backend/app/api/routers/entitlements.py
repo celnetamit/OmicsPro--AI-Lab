@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import current_tier, current_user
 from app.constants import ACTIVE_PHASE, TIER_LABELS, AccessTier
+from app.core import commercial
 from app.core import entitlements as ent
 from app.core.access import active_entitlements
 from app.db import get_db
@@ -14,9 +15,12 @@ router = APIRouter(prefix="/api/entitlements", tags=["entitlements"])
 
 
 @router.get("/matrix")
-def matrix(tier: AccessTier = Depends(current_tier)) -> dict:
+def matrix(
+    tier: AccessTier = Depends(current_tier), db: Session = Depends(get_db)
+) -> dict:
     """The full matrix, including locked rows so the UI can show them locked."""
-    allowance = ent.allowance(tier)
+    #: Run and what-if limits are commercial values an admin can change (spec 12).
+    allowance = commercial.allowance_for(db, tier)
     return {
         "currentTier": tier.value,
         "currentTierLabel": TIER_LABELS[tier],
@@ -49,11 +53,13 @@ def grants(
 
 
 @router.get("/upgrade-options")
-def upgrade_options(tier: AccessTier = Depends(current_tier)) -> dict:
+def upgrade_options(
+    tier: AccessTier = Depends(current_tier), db: Session = Depends(get_db)
+) -> dict:
     """Comparison shown on the Upgrade screen."""
     columns = []
     for candidate in (AccessTier.BASIC, AccessTier.MODERATE, AccessTier.EXPERT):
-        allowance = ent.allowance(candidate)
+        allowance = commercial.allowance_for(db, candidate)
         columns.append(
             {
                 "tier": candidate.value,

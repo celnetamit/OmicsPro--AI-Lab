@@ -194,6 +194,10 @@ def create_report(
         content=content,
     )
     db.add(report)
+    db.flush()
+    #: Spec 11: every run stores the report it produced, so the run record alone
+    #: is enough to find its output.
+    run.report_id = report.id
     db.commit()
     return {"id": report.id, "exportFormat": report.export_format, "content": content}
 

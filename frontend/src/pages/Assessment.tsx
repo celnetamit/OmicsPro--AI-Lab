@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { get, messageOf, post } from '../lib/api'
 import { LabelPill } from '../components/Evidence'
 import { ErrorNote, PageHeader, SectionHead } from '../components/ui'
+import { COPILOT_FUNCTION_LABEL, STEP_LABEL, TRACK_NAME, humanise, named } from '../lib/labels'
 import { useSession } from '../components/Session'
 import type { InterpretationLabel, RunSummary } from '../lib/types'
 
@@ -254,7 +255,7 @@ export function Assessment() {
         <select id="run" value={runId} onChange={(e) => setRunId(e.target.value)}>
           {runs.map((run) => (
             <option key={run.id} value={run.id}>
-              {run.id.slice(0, 8)} · {run.track} · {run.status}
+              {run.id.slice(0, 8)} · {named(TRACK_NAME, run.track)} · {humanise(run.status)}
             </option>
           ))}
         </select>
@@ -265,28 +266,35 @@ export function Assessment() {
         <p className="hint">
           {reviewed} of {interactions.length} Copilot outputs adjudicated.
         </p>
-        <div className="scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Step</th>
-                <th>Copilot function</th>
-                <th>Label</th>
-                <th>Your decision</th>
-              </tr>
-            </thead>
-            <tbody>
-              {interactions.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.step}</td>
-                  <td>{row.function}</td>
-                  <td>{row.label ? <LabelPill label={row.label} /> : '—'}</td>
-                  <td>{row.audit?.action ?? 'Not reviewed'}</td>
+        {interactions.length === 0 ? (
+          <p className="hint">
+            No Copilot outputs are recorded for this run yet. They appear here once a step's
+            explanation or interpretation has been opened in the workspace.
+          </p>
+        ) : (
+          <div className="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Step</th>
+                  <th>Copilot function</th>
+                  <th>Label</th>
+                  <th>Your decision</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {interactions.map((row) => (
+                  <tr key={row.id}>
+                    <td>{named(STEP_LABEL, row.step)}</td>
+                    <td>{named(COPILOT_FUNCTION_LABEL, row.function)}</td>
+                    <td>{row.label ? <LabelPill label={row.label} /> : '—'}</td>
+                    <td>{row.audit?.action ? humanise(row.audit.action) : 'Not reviewed'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -297,7 +305,7 @@ export function Assessment() {
           <div className="stack">
             {interpretations.map((entry) => (
               <div key={entry.id}>
-                <h4>{entry.step}</h4>
+                <h4>{named(STEP_LABEL, entry.step)}</h4>
                 <p>
                   <strong>Observation:</strong> {entry.observation || '—'}
                 </p>

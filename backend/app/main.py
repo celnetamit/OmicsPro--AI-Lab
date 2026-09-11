@@ -27,6 +27,7 @@ from app.api.routers import (
     datasets,
     design,
     entitlements,
+    issues,
     program,
     reports,
     runs,
@@ -238,6 +239,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):  # prag
 for router in (
     auth.router,
     entitlements.router,
+    issues.router,
     program.router,
     design.router,
     datasets.router,

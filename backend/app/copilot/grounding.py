@@ -21,7 +21,10 @@ from typing import Any, Dict, List, Set
 from app.constants import LOCKED_METHODS
 from app.copilot import evidence
 
-_REF = re.compile(r"\{\{(computed|param|method):([A-Za-z0-9_.\[\]-]+)\}\}")
+#: A reference may name a fallback in words for an empty value, as in
+#: ``{{computed:pathway.top_sets|none}}``. The fallback is lower-case words only,
+#: so it can carry no number or gene symbol the verifier would have to trust.
+_REF = re.compile(r"\{\{(computed|param|method):([A-Za-z0-9_.\[\]-]+)(?:\|([a-z][a-z ]*))?\}\}")
 _NUMBER = re.compile(r"(?<![A-Za-z0-9_.])-?\d+(?:\.\d+)?(?:[eE]-?\d+)?%?")
 _GENE_SHAPED = re.compile(r"\b[A-Z][A-Z0-9]{2,}(?:-[A-Z0-9]+)?\b")
 
@@ -90,7 +93,10 @@ def _literals_of(value: Any) -> Set[str]:
             out |= _literals_of(item)
         return out
     rendered = _stringify(value)
-    return {rendered, str(value)} | set(_GENE_SHAPED.findall(rendered))
+    #: A number inside a substituted string (the year in a citation, the digits
+    #: of an accession) arrived with that string and is exactly as traceable.
+    numbers = {token.lstrip("+") for token in _NUMBER.findall(rendered)}
+    return {rendered, str(value)} | set(_GENE_SHAPED.findall(rendered)) | numbers
 
 
 def render(
@@ -109,7 +115,7 @@ def render(
     result = Grounded(text="", evidence_source_ids=list(evidence_source_ids))
 
     def _replace(match: "re.Match") -> str:
-        kind, path = match.group(1), match.group(2)
+        kind, path, fallback = match.group(1), match.group(2), match.group(3)
         if kind == "computed":
             value = _dig(computed, path)
             result.computed_refs.append(path)
@@ -124,6 +130,8 @@ def render(
         else:
             value = _dig(LOCKED_METHODS, path)
             result.method_refs.append(path)
+        if fallback and (value is None or value == "" or value == [] or value == ()):
+            return fallback
         result.literals |= _literals_of(value)
         return _stringify(value)
 

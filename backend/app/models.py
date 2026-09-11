@@ -182,6 +182,11 @@ class Run(Base):
     last_valid_step: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     error_message: Mapped[str] = mapped_column(Text, default="")
     error_detail: Mapped[str] = mapped_column(Text, default="")
+    #: The most recent report generated from this run (spec 11). A plain
+    #: column rather than a foreign key: reports already reference their run,
+    #: and a key in both directions makes the two tables impossible to create
+    #: or drop in either order.
+    report_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 
@@ -381,3 +386,28 @@ class AdminSetting(Base):
     value: Mapped[dict] = mapped_column(JSON, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
     updated_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+
+
+class IssueReport(Base):
+    """A problem a learner reported from inside the lab (spec 14).
+
+    The admin console reviews these alongside the AI audit records. The screen
+    and, where there is one, the run are captured so a report can be reproduced
+    rather than only read.
+    """
+
+    __tablename__ = "issue_reports"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    run_id: Mapped[Optional[str]] = mapped_column(ForeignKey("runs.id"), nullable=True, index=True)
+    screen: Mapped[str] = mapped_column(String(128), default="")
+    #: scientific | technical | content | access | other
+    category: Mapped[str] = mapped_column(String(32), default="other")
+    message: Mapped[str] = mapped_column(Text)
+    #: open | acknowledged | resolved
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)
+    admin_note: Mapped[str] = mapped_column(Text, default="")
+    resolved_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)

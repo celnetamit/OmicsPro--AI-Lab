@@ -37,7 +37,7 @@ def deseq2_differential_expression(
 ) -> Dict[str, object]:
     """Negative-binomial GLM with Wald test, via the locked R/DESeq2 runtime."""
     try:
-        from rpy2 import robjects  # noqa: F401
+        from rpy2 import robjects
         from rpy2.robjects.packages import importr
     except ImportError:
         raise _unavailable(
@@ -49,6 +49,16 @@ def deseq2_differential_expression(
     except Exception:
         raise _unavailable(
             "bulk_statistics", "The R runtime is present but DESeq2 is not installed."
+        )
+    #: The installed release is checked against the lock rather than trusted,
+    #: exactly as the embedding runtime is: a run records the version that ran.
+    installed = str(robjects.r('as.character(packageVersion("DESeq2"))')[0])
+    locked_version = LOCKED_METHODS["bulk_statistics"]["version"]
+    if installed != locked_version:
+        raise BackendUnavailable(
+            f"DESeq2 {installed} is installed but {locked_version} is the locked "
+            f"version, and a run may only record the version that ran. Provision "
+            f"the R worker image pinned to the locked release."
         )
     return _run_deseq2(
         deseq2, counts, gene_names, sample_metadata, design_formula,
@@ -114,6 +124,39 @@ def leiden_clustering(connectivities, resolution: float) -> np.ndarray:
         seed=0,
     )
     return np.asarray(partition.membership)
+
+
+def umap_embedding(coordinates: np.ndarray, n_neighbors: int, min_dist: float) -> np.ndarray:
+    """Two-dimensional layout of the neighbour graph via the locked UMAP.
+
+    The installed version is checked against the lock rather than trusted: the
+    method version stamped on a run must be the one that ran, so a mismatched
+    runtime refuses instead of producing a layout under a false label. The seed
+    is fixed, which is what makes the same parameters give the same picture.
+    """
+    try:
+        import umap
+    except ImportError:
+        raise _unavailable(
+            "embedding",
+            "Provision the single-cell worker image, which carries umap-learn.",
+        )
+    locked_version = LOCKED_METHODS["embedding"]["version"]
+    if umap.__version__ != locked_version:
+        raise _unavailable(
+            "embedding",
+            f"umap-learn {umap.__version__} is installed but {locked_version} is "
+            f"the locked version, and a run may only record the version that ran.",
+        )
+    n = coordinates.shape[0]
+    reducer = umap.UMAP(
+        n_components=2,
+        n_neighbors=int(min(max(n_neighbors, 2), max(n - 1, 2))),
+        min_dist=float(min_dist),
+        metric="euclidean",
+        random_state=0,
+    )
+    return np.asarray(reducer.fit_transform(coordinates))
 
 
 def scrublet_doublet_scores(counts) -> Dict[str, np.ndarray]:

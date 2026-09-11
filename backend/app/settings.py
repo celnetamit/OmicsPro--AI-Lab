@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     #: The account an open-access visitor is signed in as.
     guest_email: str = "guest@omicslab.local"
     guest_name: str = "Lab visitor"
+    #: Tier the open-access session carries. "basic" is what a real learner
+    #: gets and is the only correct value for a public deployment. Raise it to
+    #: "moderate" or "expert" on an evaluation or development deployment to
+    #: open every paid feature without having to buy or grant one — the
+    #: entitlement machinery is unchanged, the shared account simply holds a
+    #: higher grant, and every server-side check runs exactly as it always does.
+    open_access_tier: str = "basic"
 
     data_dir: str = "./data"
     cors_origins: str = "http://localhost:5173"
@@ -80,6 +87,19 @@ class Settings(BaseSettings):
     @classmethod
     def _normalise_environment(cls, value: str) -> str:
         return value.strip().lower()
+
+    @field_validator("open_access_tier")
+    @classmethod
+    def _known_tier(cls, value: str) -> str:
+        from app.constants import AccessTier
+
+        tier = value.strip().lower()
+        if tier not in {t.value for t in AccessTier}:
+            raise ValueError(
+                "OMICSLAB_OPEN_ACCESS_TIER must be one of: "
+                + ", ".join(t.value for t in AccessTier)
+            )
+        return tier
 
     @property
     def is_production(self) -> bool:

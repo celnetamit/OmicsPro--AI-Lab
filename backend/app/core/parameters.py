@@ -228,8 +228,8 @@ _REGISTRY: List[Parameter] = [
         kind="bool",
         default=True,
         method_rule=(
-            "Doublet calls come from the locked detection method (see "
-            "LOCKED_METHODS['doublet_detection']). Predictions are probabilistic; "
+            "Doublet calls come from the locked detection method, Scrublet, as "
+            "recorded in the method lock. Predictions are probabilistic; "
             "a flagged barcode is a candidate doublet, not a confirmed one."
         ),
         validation_message="Doublet filtering must be true or false.",
@@ -275,6 +275,26 @@ _REGISTRY: List[Parameter] = [
         ),
         validation_message="Neighbour count must be between {min} and {max}.",
         ranges={"limited": (10, 30), "full": (5, 100), "extended": (2, 300)},
+    ),
+    _p(
+        key="sc.umap.min_dist",
+        label="UMAP minimum distance",
+        track=AnalysisTrack.CORE,
+        step="embedding",
+        kind="float",
+        default=0.5,
+        method_rule=(
+            "Sets how tightly UMAP packs neighbouring cells in the two-dimensional "
+            "layout. It changes the picture only: the neighbour graph and the "
+            "clusters are computed without it."
+        ),
+        caveat=(
+            "Distances and areas on a UMAP are not quantitative. How far apart two "
+            "groups sit, and how much space one covers, are properties of the "
+            "layout rather than of the cells."
+        ),
+        validation_message="UMAP minimum distance must be between {min} and {max}.",
+        ranges={"limited": (0.3, 0.7), "full": (0.1, 0.9), "extended": (0.0, 1.0)},
     ),
     _p(
         key="sc.cluster.resolution",

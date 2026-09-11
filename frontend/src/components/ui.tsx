@@ -51,7 +51,7 @@ export function PageHeader({
     return (
       <header className="hero">
         {eyebrow ? <span className="hero-eyebrow">{eyebrow}</span> : null}
-        <h2>{title}</h2>
+        <h1>{title}</h1>
         {lede ? <p className="lede">{lede}</p> : null}
         {actions ? <div className="row">{actions}</div> : null}
         {children}
@@ -64,7 +64,7 @@ export function PageHeader({
       <div className="row">
         <div>
           {eyebrow ? <span className="tag">{eyebrow}</span> : null}
-          <h2>{title}</h2>
+          <h1>{title}</h1>
           {lede ? <p className="lede">{lede}</p> : null}
         </div>
         {actions ? <div className="row">{actions}</div> : null}
@@ -129,7 +129,7 @@ export function SectionHead({
   return (
     <div className={`section-head${centred ? ' centred' : ''}`}>
       <div>
-        <h3>{title}</h3>
+        <h2>{title}</h2>
         {sub ? <p className="sub">{sub}</p> : null}
       </div>
       {action}

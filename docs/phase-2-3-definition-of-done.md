@@ -105,3 +105,32 @@ The same discipline governs the defence score: every part states what it
 counted, and the note says plainly that it measures whether the work is
 defensible — complete, adjudicated, tested, stated with its limits — and not
 whether the biology is right, which the platform cannot know.
+
+
+## Added 2026-09-11, after reading the final specification (V2.0) end to end
+
+| Item | What was missing | Where it is now |
+|---|---|---|
+| Plots and tables in the workspace (spec 10.7) | A step's result was a raw JSON dump. | `core/figures.py` (one catalogue shared with the capstone figure pack), `GET /api/runs/{id}/figures?step=`, `components/Figure.tsx`: SVG charts drawn from the run's record, each with a legend where there is more than one series, a hover layer and a table view. Colours are the validated palette, stepped separately for the dark theme. |
+| UMAP (spec 5.2) | No embedding step. | Locked `umap-learn 0.5.12`, seed 0, installed version checked against the lock; `sc.umap.min_dist` in the parameter registry; Copilot knowledge and the method paper in the evidence registry. A Core run is ten steps. |
+| Dataset Inspector explanation (spec 9.6) | Provenance and counts only. | `copilot/dataset_brief.py`, `GET /api/datasets/{id}/brief`: provenance, design, structure and the analyses the design supports, every number grounded and verified; which analyses a design supports is decided by rules in code. Recorded as an AI interaction. |
+| Commercial values in admin (spec 12) | Prices and allowances were constants. | `core/commercial.py`, `GET`/`PUT /api/admin/commercial/*`, the console editor. Validated: Basic never priced, Basic keeps one run and one what-if, no tier gets less than a lower one. |
+| Progressive week unlock (spec 4, 17) | No way to move a cohort forward. | `GET /api/admin/cohorts`, `POST /api/admin/cohorts/week`, `POST /api/admin/learners/{id}/week`, and the console. |
+| Learner-reported issues (spec 14) | No learner route; no admin queue. | `POST /api/issues` (screen and own run captured), the footer control, `GET`/`PATCH /api/admin/issues`. |
+| Completion reporting (spec 11) | Usage totals only. | `GET /api/admin/completion`; usage adds exports by format and dataset load. |
+| Ingestion formats (spec 6) | The upload parsed CSV only while the policy allowed `.h5ad`/`.h5`/`.mtx` for Core and Advanced, so those uploads could never succeed; per-cell metadata failed the duplicate-sample check; a Core matrix would have been stored genes × cells; the operator script told PBMC users to pass a `.mtx` it could not read. | `governance/ingest.py`, shared by the upload and `scripts/fetch_guided_data.py`: CSV/TSV, 10x MTX and HDF5, `.h5ad`, Visium positions; metadata matched by identifier; raw counts only; a recorded seeded subsample when the dense object would be too large. Validation counts replicates in samples for Core and Advanced. |
+| Upload privacy | The upload response promised the data is never shared, but every learner's dataset list, inspector, run creation and spatial reference lookup reached every upload. | `visible_to` in the datasets router; someone else's upload is a 404 on every route. |
+| Locked version checks | DESeq2's installed release was trusted. | Checked against the lock, as umap-learn is. |
+| Admin console honesty | For a non-admin, "Every locked method has SME sign-off" was printed because the lock had failed to load. | One access check; sign-off is stated only from the lock record. |
+
+### Still open after this pass
+
+- **The R image for DESeq2** is not built here; Foundation runs stop at
+  differential expression with a message saying so. Pinning it is the method
+  owner's decision (DESeq2 1.42.0 is the lock).
+- **Annotation confidence.** Cell types are learner-assigned (cluster ids until
+  then). Scoring a label's confidence from marker evidence needs a reviewed
+  marker panel per tissue; none exists, and inventing one would put unreviewed
+  biology behind a confidence figure. It needs the panel from the SME first.
+- **Guided data ingestion** is still an operator step, now with a script that
+  reads the formats those accessions are distributed in.
