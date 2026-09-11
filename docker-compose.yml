@@ -72,6 +72,7 @@ services:
     # Local runs publish localhost:8080 from docker-compose.override.yml.
     expose:
       - "8080"
+      - "80"
 
 volumes:
   db-data:
