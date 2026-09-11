@@ -36,9 +36,11 @@ Changing `POSTGRES_PASSWORD` later does nothing until the volume is recreated.
 4. Point the domain at the `web` service, port 8080. Let Coolify terminate TLS.
 5. Set `INCLUDE_SCIENCE=true` unless the deployment serves the Foundation track
    only — see "Scientific runtimes" below.
-6. Set `WEB_BIND=127.0.0.1`. The proxy reaches `web` over the Docker network;
-   without this the same container is also published on the server's public
-   address as plain HTTP on port 8080.
+6. Nothing to set for ports. `docker-compose.yml` publishes no host port: the
+   proxy reaches `web` over the Docker network, so the deployment cannot
+   collide with another app's port and nothing bypasses TLS. Local runs get
+   `localhost:8080` from `docker-compose.override.yml`, which `docker compose
+   up` merges on its own and Coolify's `-f docker-compose.yml` skips.
 7. Keep one `api` replica (see "Scaling" below) and give the server at least
    4 GB of memory: the science image builds Scanpy, and a Core run holds its
    matrix in memory.

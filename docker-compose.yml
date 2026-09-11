@@ -66,11 +66,12 @@ services:
     environment:
       API_UPSTREAM: http://api:8000
       PORT: 8080
-    # Coolify's proxy reaches this container over the Docker network, so on a
-    # server set WEB_BIND=127.0.0.1: otherwise the app is also published on the
-    # public address as plain HTTP. Locally the default keeps localhost:8080.
-    ports:
-      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:8080"
+    # No host port here. On a server Coolify's proxy reaches this container over
+    # the Docker network (the domain's :8080 names the container port), so there
+    # is no host port to collide with another app, and none that bypasses TLS.
+    # Local runs publish localhost:8080 from docker-compose.override.yml.
+    expose:
+      - "8080"
 
 volumes:
   db-data:

@@ -1,0 +1,7 @@
+# Local runs only. `docker compose up` merges this file on its own; Coolify
+# deploys with `-f docker-compose.yml`, which skips it, so a server never
+# publishes a host port that could collide with another app or bypass TLS.
+services:
+  web:
+    ports:
+      - "${WEB_PORT:-8080}:8080"
