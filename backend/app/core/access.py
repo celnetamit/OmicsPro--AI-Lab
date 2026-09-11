@@ -36,29 +36,41 @@ def _has_active_enrollment(db: Session, user_id: str) -> bool:
     )
 
 
+#: The source recorded on grants the open-access switch makes, so it can find
+#: and take back its own grants without ever touching a purchase.
+OPEN_ACCESS_SOURCE = "open_access_configuration"
+
+
 def ensure_open_access_tier(db: Session, user_id: str, tier: AccessTier) -> Optional[Entitlement]:
-    """Hold the open-access session at a configured tier.
+    """Hold the open-access session at exactly the configured tier.
 
     Used only by the shared open-access account, so an evaluation deployment can
-    exercise the paid features without a purchase. Idempotent, and it grants
-    rather than bypasses: every entitlement check still runs, the account simply
-    holds the grant. Basic needs nothing beyond the enrollment auto-grant.
+    exercise the paid features without a purchase. It grants rather than
+    bypasses: every entitlement check still runs, the account simply holds the
+    grant. It also takes back what it gave: lowering the setting revokes the
+    earlier grant, so returning to "basic" really closes the paid features
+    again. Only grants made here are touched, never a purchase.
     """
-    if tier is AccessTier.BASIC:
-        return None
+    now = datetime.utcnow()
+    held: Optional[Entitlement] = None
     for entitlement in active_entitlements(db, user_id):
-        if AccessTier(entitlement.tier) is tier:
-            return entitlement
-    granted = Entitlement(
-        user_id=user_id,
-        tier=tier,
-        source="open_access_configuration",
-        expires_at=None,
-        note="Granted by OMICSLAB_OPEN_ACCESS_TIER for evaluation.",
-    )
-    db.add(granted)
+        if entitlement.source != OPEN_ACCESS_SOURCE:
+            continue
+        if held is None and tier is not AccessTier.BASIC and AccessTier(entitlement.tier) is tier:
+            held = entitlement
+        else:
+            entitlement.revoked_at = now
+    if held is None and tier is not AccessTier.BASIC:
+        held = Entitlement(
+            user_id=user_id,
+            tier=tier,
+            source=OPEN_ACCESS_SOURCE,
+            expires_at=None,
+            note="Granted by OMICSLAB_OPEN_ACCESS_TIER for evaluation.",
+        )
+        db.add(held)
     db.commit()
-    return granted
+    return held
 
 
 def ensure_basic_auto_grant(db: Session, user_id: str) -> Optional[Entitlement]:

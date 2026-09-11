@@ -386,3 +386,21 @@ def test_an_unknown_open_access_tier_is_refused_at_startup():
     with pytest.raises(ValidationError) as exc:
         Settings(open_access_tier="unlimited", _env_file=None)
     assert "OMICSLAB_OPEN_ACCESS_TIER" in str(exc.value)
+
+
+def test_lowering_the_open_tier_takes_the_paid_features_back(client, monkeypatch):
+    """The switch opens paid features for an evaluation and must close them
+    again: a grant it made is revoked when the setting is lowered, not left in
+    force on the shared account for good."""
+    from app.settings import settings
+
+    def tier_of_a_new_session() -> str:
+        token = client.post("/api/auth/guest").json()["access_token"]
+        return client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).json()["accessTier"]
+
+    monkeypatch.setattr(settings, "open_access_tier", "expert")
+    assert tier_of_a_new_session() == "expert"
+    monkeypatch.setattr(settings, "open_access_tier", "moderate")
+    assert tier_of_a_new_session() == "moderate"
+    monkeypatch.setattr(settings, "open_access_tier", "basic")
+    assert tier_of_a_new_session() == "basic"

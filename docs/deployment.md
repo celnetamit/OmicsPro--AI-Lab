@@ -199,9 +199,11 @@ the real gating logic rather than a disabled version of it.
 
 Two consequences worth stating. It applies only to the shared open-access
 account — a registered learner's tier still comes from their own entitlements,
-which is asserted by a test. And because it takes effect when a session is
-issued, an already-open browser keeps the tier it was given: clear the stored
-session or reload after changing the variable.
+which is asserted by a test. And it takes effect when a session is issued, in
+both directions: raising it grants the tier, and lowering it (back to `basic`,
+say) revokes that grant, the next time any browser opens a new session. Open
+the site once in a private window after changing the variable, and every
+browser sharing the account sees the new tier on its next reload.
 
 Set `OMICSLAB_OPEN_ACCESS=false` to put the sign-in screen back in front of the
 app. Nothing else changes: the guest endpoint starts returning 404, the client
