@@ -2,10 +2,11 @@ import { Suspense, lazy } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Layout } from './components/Layout'
+import { HubSessionProvider } from './components/HubSession'
+import { LabAuthGuard } from './components/LabAuthGuard'
 import { SessionProvider, useSession } from './components/Session'
 import { Skeleton } from './components/ui'
 import { LabHome } from './pages/LabHome'
-import { Login } from './pages/Login'
 
 /**
  * The thirteen screens of spec 9, each a first-class route.
@@ -28,6 +29,13 @@ const Assessment = lazy(() => import('./pages/Assessment').then((m) => ({ defaul
 const Reports = lazy(() => import('./pages/Reports').then((m) => ({ default: m.Reports })))
 const Upgrade = lazy(() => import('./pages/Upgrade').then((m) => ({ default: m.Upgrade })))
 const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin })))
+//: NanoSchool's own screens: feedback to the programme team, and the reviewer
+//: agreement and review form a pre-release expert works through.
+const Feedback = lazy(() => import('./pages/Feedback').then((m) => ({ default: m.Feedback })))
+const ReviewerAgreement = lazy(() =>
+  import('./pages/ReviewerAgreement').then((m) => ({ default: m.ReviewerAgreement })),
+)
+const ExpertReview = lazy(() => import('./pages/ExpertReview').then((m) => ({ default: m.ExpertReview })))
 
 function NotFound() {
   return (
@@ -50,7 +58,22 @@ function Routed() {
       </div>
     )
   }
-  if (!me) return <Login />
+  if (!me) {
+    //: The gate let this session through and the server then refused to
+    //: describe it — something other than an expired token, which LabAuthGuard
+    //: handles by offering a relaunch. Nothing useful can render without a
+    //: profile, so say that plainly instead of showing empty screens.
+    return (
+      <div className="empty">
+        <h1>Could not load your session</h1>
+        <p>
+          The lab could not read your profile. Reload the page; if it keeps happening,
+          launch the lab again from your NanoSchool dashboard.
+        </p>
+        <button type="button" onClick={() => window.location.reload()}>Reload</button>
+      </div>
+    )
+  }
 
   return (
     <Suspense fallback={<div style={{ padding: 32 }}><Skeleton lines={4} /></div>}>
@@ -71,6 +94,9 @@ function Routed() {
           <Route path="reports" element={<Reports />} />
           <Route path="upgrade" element={<Upgrade />} />
           <Route path="admin" element={<Admin />} />
+          <Route path="feedback" element={<Feedback />} />
+          <Route path="reviewer-agreement" element={<ReviewerAgreement />} />
+          <Route path="expert-review" element={<ExpertReview />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
@@ -82,9 +108,16 @@ export function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <SessionProvider>
-          <Routed />
-        </SessionProvider>
+        {/* Nothing below this renders until NanoSchool has vouched for the
+            visitor, and the session provider below it never creates a session
+            of its own — so there is exactly one way into the lab. */}
+        <LabAuthGuard>
+          <SessionProvider>
+            <HubSessionProvider>
+              <Routed />
+            </HubSessionProvider>
+          </SessionProvider>
+        </LabAuthGuard>
       </BrowserRouter>
     </ErrorBoundary>
   )

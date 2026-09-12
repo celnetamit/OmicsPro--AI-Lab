@@ -19,18 +19,16 @@ import tempfile  # noqa: E402
 _TEST_DB_DIR = tempfile.mkdtemp(prefix="omicslab-tests-")
 os.environ["OMICSLAB_DATABASE_URL"] = f"sqlite:///{_TEST_DB_DIR}/app.db"
 os.environ["OMICSLAB_ENVIRONMENT"] = "development"
-os.environ["OMICSLAB_OPEN_ACCESS_TIER"] = "basic"
+os.environ["OMICSLAB_GRANTED_TIER"] = "basic"
 #: Runs complete before the response returns, so a test can assert on results.
 os.environ.setdefault("OMICSLAB_RUN_EXECUTION_MODE", "inline")
-#: The production work factor makes the suite spend minutes hashing passwords.
-os.environ.setdefault("OMICSLAB_BCRYPT_ROUNDS", "4")
 os.environ.setdefault("OMICSLAB_LOG_LEVEL", "WARNING")
 
 from app.constants import AccessTier, AnalysisTrack  # noqa: E402
 from app.db import get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Base, Dataset, Enrollment, Entitlement, User  # noqa: E402
-from app.core.security import hash_password  # noqa: E402
+from app.core.security import create_access_token  # noqa: E402
 
 
 @pytest.fixture()
@@ -45,7 +43,7 @@ def db_session(tmp_path):
 
 @pytest.fixture(autouse=True)
 def _clear_rate_limits():
-    """Each test starts with a clean limiter; otherwise the login fixtures of
+    """Each test starts with a clean limiter; otherwise the session fixtures of
     one module exhaust the window for the next."""
     from app.core import ratelimit
 
@@ -64,7 +62,9 @@ def client(db_session):
 
 @pytest.fixture()
 def learner(db_session):
-    user = User(email="learner@example.com", password_hash=hash_password("secret-pass"))
+    #: A hub id, because that is what a real account here has: the lab issues
+    #: no credentials, so every learner arrived through a NanoSchool launch.
+    user = User(email="learner@example.com", hub_user_id="hub-learner")
     db_session.add(user)
     db_session.flush()
     db_session.add(Enrollment(user_id=user.id, program_code="flagship-8w"))
@@ -75,10 +75,10 @@ def learner(db_session):
 
 @pytest.fixture()
 def auth(client, learner):
-    token = client.post(
-        "/api/auth/login", json={"email": learner.email, "password": "secret-pass"}
-    ).json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    #: Minted directly rather than through the API: there is no credential to
+    #: present, and a test that stubbed the hub merely to obtain a token would
+    #: be testing the stub.
+    return {"Authorization": f"Bearer {create_access_token(learner.id)}"}
 
 
 @pytest.fixture()
@@ -101,7 +101,7 @@ def fixture_dataset(db_session):
 
 
 def _tiered_user(db_session, email: str, tier: AccessTier) -> User:
-    user = User(email=email, password_hash=hash_password("secret-pass"))
+    user = User(email=email, hub_user_id=f"hub-{email}")
     db_session.add(user)
     db_session.flush()
     db_session.add(Enrollment(user_id=user.id, program_code="flagship-8w"))
@@ -113,10 +113,7 @@ def _tiered_user(db_session, email: str, tier: AccessTier) -> User:
 
 
 def _token(client, user) -> dict:
-    token = client.post(
-        "/api/auth/login", json={"email": user.email, "password": "secret-pass"}
-    ).json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {create_access_token(user.id)}"}
 
 
 @pytest.fixture()
@@ -141,9 +138,7 @@ def expert_auth(client, expert_user):
 
 @pytest.fixture()
 def admin_auth(client, db_session):
-    user = User(
-        email="admin@example.com", password_hash=hash_password("secret-pass"), is_admin=True
-    )
+    user = User(email="admin@example.com", hub_user_id="hub-admin", is_admin=True)
     db_session.add(user)
     db_session.commit()
     return _token(client, user)

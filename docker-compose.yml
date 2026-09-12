@@ -40,10 +40,18 @@ services:
       # cross-origin request. This stays set for direct API clients only.
       OMICSLAB_CORS_ORIGINS: ${OMICSLAB_CORS_ORIGINS:-http://localhost:8080}
       OMICSLAB_DATA_DIR: /data
-      # Tier the shared open-access session carries. "basic" is what a real
+      # Tier every NanoSchool account starts with. "basic" is what a real
       # learner gets; raise it to expert on an evaluation deployment to open
-      # every paid feature without buying one.
-      OMICSLAB_OPEN_ACCESS_TIER: ${OMICSLAB_OPEN_ACCESS_TIER:-basic}
+      # every paid feature without buying one. OMICSLAB_OPEN_ACCESS_TIER is the
+      # name this had before the lab moved to NanoSchool sign-in, and it is
+      # still honoured so an existing deployment's configuration keeps working.
+      OMICSLAB_GRANTED_TIER: ${OMICSLAB_GRANTED_TIER:-${OMICSLAB_OPEN_ACCESS_TIER:-basic}}
+      # NanoSchool, which authenticates every learner. The API verifies each
+      # launch token with it directly, so this must be reachable from the
+      # container, not just from the browser.
+      OMICSLAB_HUB_BASE_URL: ${VITE_HUB_URL:-https://live-labs.org}
+      OMICSLAB_LAB_SLUG: ${OMICSLAB_LAB_SLUG:-omicslab}
+      OMICSLAB_LAB_PUBLIC_URL: ${OMICSLAB_LAB_PUBLIC_URL:-https://omicslab.live-labs.org}
       OMICSLAB_RUN_EXECUTION_MODE: background
       OMICSLAB_RUN_WORKER_THREADS: ${OMICSLAB_RUN_WORKER_THREADS:-2}
       OMICSLAB_LOG_JSON: ${OMICSLAB_LOG_JSON:-true}
@@ -60,12 +68,16 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         VITE_RELEASE: ${OMICSLAB_RELEASE:-dev}
+        # NanoSchool, for the feedback and expert-review screens. The same value
+        # reaches the bundle and the content-security policy.
+        VITE_HUB_URL: ${VITE_HUB_URL:-https://live-labs.org}
     restart: unless-stopped
     depends_on:
       - api
     environment:
       API_UPSTREAM: http://api:8000
       PORT: 8080
+      HUB_ORIGIN: ${VITE_HUB_URL:-https://live-labs.org}
     # No host port here. On a server Coolify's proxy reaches this container over
     # the Docker network (the domain's :8080 names the container port), so there
     # is no host port to collide with another app, and none that bypasses TLS.

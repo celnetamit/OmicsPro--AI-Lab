@@ -1,8 +1,9 @@
 """Seed the database with the launch content.
 
-Creates the admin account, the guided dataset records with their provenance, the
-runtime-editable settings, and a clearly-labelled synthetic fixture so the full
-Phase 1 flow can be exercised before the real teaching data is ingested.
+Appoints an administrator by email, creates the guided dataset records with
+their provenance, the runtime-editable settings, and a clearly-labelled
+synthetic fixture so the full Phase 1 flow can be exercised before the real
+teaching data is ingested.
 
 Guided datasets are seeded as ``pending_data_ingest``: they are not selectable
 until scripts/fetch_guided_data.py has downloaded and validated the real files.
@@ -18,7 +19,6 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
 from app.constants import AccessTier, AnalysisTrack  # noqa: E402
-from app.core.security import hash_password, validate_password  # noqa: E402
 from app.db import SessionLocal, init_db  # noqa: E402
 from app.models import AdminSetting, Dataset, Enrollment, Entitlement, User  # noqa: E402
 from app.settings import settings  # noqa: E402
@@ -237,37 +237,42 @@ def main() -> None:
     init_db()
     db = SessionLocal()
 
-    admin_email = os.environ.get("OMICSLAB_ADMIN_EMAIL", "admin@nanoschool.example")
-    admin_password = os.environ.get("OMICSLAB_ADMIN_PASSWORD", "")
-    if not db.query(User).filter(User.email == admin_email).first():
-        # A default password here would create an Expert administrator with
-        # publicly known credentials on every deployment whose operator forgot
-        # to set the variable. Outside development, refuse instead.
-        if not admin_password:
-            if settings.is_production:
-                raise SystemExit(
-                    "Refusing to seed an administrator without a password.\n"
-                    "Set OMICSLAB_ADMIN_PASSWORD (and OMICSLAB_ADMIN_EMAIL) and run again."
-                )
-            admin_password = "change-me-now"
-            print(
-                "WARNING: seeding the development administrator with the default "
-                "password 'change-me-now'. Set OMICSLAB_ADMIN_PASSWORD for any "
-                "deployment that is reachable by anyone else."
-            )
-        else:
-            validate_password(admin_password, email=admin_email)
+    # The administrator is appointed by email, not by credential. This lab
+    # accepts no passwords: NanoSchool authenticates everyone, and a session
+    # exists only because it verified a launch. So the row seeded here is an
+    # empty account waiting for a person — when whoever holds this address
+    # launches the lab from their dashboard, that launch is matched to this row
+    # (app/core/lab_session.py) and they arrive as an administrator.
+    #
+    # Two ways to appoint one, and either is enough:
+    #   * set OMICSLAB_ADMIN_EMAIL here, for someone whose hub role is an
+    #     ordinary learner but who runs ingestion and dataset sign-off;
+    #   * give them the ADMIN or SUPER_ADMIN role on the hub, which grants this
+    #     lab's admin console with nothing to seed at all.
+    admin_email = os.environ.get("OMICSLAB_ADMIN_EMAIL", "").strip().lower()
+    if not admin_email:
+        print(
+            "No OMICSLAB_ADMIN_EMAIL set, so no administrator was seeded. "
+            "A NanoSchool account with the ADMIN or SUPER_ADMIN role already "
+            "opens the admin console; set this variable to appoint someone who "
+            "does not have one."
+        )
+    elif not db.query(User).filter(User.email == admin_email).first():
         admin = User(
             email=admin_email,
             full_name="Platform administrator",
-            password_hash=hash_password(admin_password),
             is_admin=True,
         )
         db.add(admin)
         db.flush()
         db.add(Enrollment(user_id=admin.id, program_code="flagship-8w", cohort="staff"))
         db.add(Entitlement(user_id=admin.id, tier=AccessTier.EXPERT, source="admin_grant"))
-        print(f"Created admin account {admin_email}")
+        print(
+            f"Appointed {admin_email} as administrator. It becomes a usable "
+            "account when they launch the lab from their NanoSchool dashboard."
+        )
+    else:
+        print(f"{admin_email} already exists; left unchanged.")
 
     for spec in GUIDED_DATASETS + TRIAL_DATASETS:
         if db.query(Dataset).filter(Dataset.slug == spec["slug"]).first():

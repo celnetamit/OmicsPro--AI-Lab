@@ -5,22 +5,19 @@ These tests hold every route that reaches a dataset to that promise.
 """
 
 from app.constants import AccessTier, AnalysisTrack
-from app.core.security import hash_password
+from app.core.security import create_access_token
 from app.models import Dataset, Enrollment, Entitlement, User
 
 
 def _second_expert(db_session, client):
-    user = User(email="second-expert@example.com", password_hash=hash_password("secret-pass"))
+    user = User(email="second-expert@example.com", hub_user_id="hub-second-expert")
     db_session.add(user)
     db_session.flush()
     db_session.add(Enrollment(user_id=user.id, program_code="flagship-8w"))
     db_session.add(Entitlement(user_id=user.id, tier=AccessTier.BASIC))
     db_session.add(Entitlement(user_id=user.id, tier=AccessTier.EXPERT, source="purchase"))
     db_session.commit()
-    token = client.post(
-        "/api/auth/login", json={"email": user.email, "password": "secret-pass"}
-    ).json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {create_access_token(user.id)}"}
 
 
 def _upload(db_session, owner) -> Dataset:

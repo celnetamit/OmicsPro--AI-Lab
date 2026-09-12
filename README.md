@@ -93,12 +93,20 @@ unsafe production configuration.
 
 ## Access
 
-`OMICSLAB_OPEN_ACCESS` defaults to **true**: the lab opens directly into the
-workspace with no sign-in and no sign-out control, on one shared Basic-tier
-account. That means every visitor shares one workspace and can see each other's
-runs — an evaluation mode, not a multi-tenant one. The credential path is fully
-implemented and tested underneath; set the variable to `false` to put the
-sign-in screen back in front of the app.
+NanoSchool signs everybody in. This lab has no sign-in screen, no registration
+and no password column: a learner opens it from their live-labs.org dashboard,
+which carries a one-shot launch token, and `POST /api/auth/lab-session` has the
+**API** verify that token with the hub before issuing a 12-hour lab session.
+Verification is server-side on purpose — the page never decides whose account
+it is, because the runs and reports it would be storing are per-account. The
+hub's `ADMIN`/`SUPER_ADMIN` roles open the admin console, and its `isReviewer`
+flag opens the reviewer screens.
+
+`OMICSLAB_GRANTED_TIER` is the tier each account starts with (`basic` for real
+learners; raise it on an evaluation deployment). For a laptop with no hub,
+build with `VITE_DISABLE_LAB_AUTH=true` and run the API with
+`OMICSLAB_DEV_LAB_SESSION=true` — both are needed, and the API refuses the
+second in production. See [docs/deployment.md](docs/deployment.md#access-nanoschool-signs-everybody-in).
 
 ## How a run executes
 

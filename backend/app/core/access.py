@@ -36,15 +36,20 @@ def _has_active_enrollment(db: Session, user_id: str) -> bool:
     )
 
 
-#: The source recorded on grants the open-access switch makes, so it can find
-#: and take back its own grants without ever touching a purchase.
+#: The source recorded on grants the configured-tier switch makes, so it can
+#: find and take back its own grants without ever touching a purchase.
+#:
+#: The literal string is deliberately unchanged from when this setting was
+#: called OMICSLAB_OPEN_ACCESS_TIER: it is written into rows that exist in
+#: deployed databases, and a new spelling would leave those grants orphaned —
+#: never revoked, because nothing would recognise them as ours.
 OPEN_ACCESS_SOURCE = "open_access_configuration"
 
 
-def ensure_open_access_tier(db: Session, user_id: str, tier: AccessTier) -> Optional[Entitlement]:
-    """Hold the open-access session at exactly the configured tier.
+def ensure_granted_tier(db: Session, user_id: str, tier: AccessTier) -> Optional[Entitlement]:
+    """Hold an account at exactly the tier this deployment grants on arrival.
 
-    Used only by the shared open-access account, so an evaluation deployment can
+    Applied to every account the hub provisions, so an evaluation deployment can
     exercise the paid features without a purchase. It grants rather than
     bypasses: every entitlement check still runs, the account simply holds the
     grant. It also takes back what it gave: lowering the setting revokes the
@@ -66,7 +71,7 @@ def ensure_open_access_tier(db: Session, user_id: str, tier: AccessTier) -> Opti
             tier=tier,
             source=OPEN_ACCESS_SOURCE,
             expires_at=None,
-            note="Granted by OMICSLAB_OPEN_ACCESS_TIER for evaluation.",
+            note="Granted by OMICSLAB_GRANTED_TIER for evaluation.",
         )
         db.add(held)
     db.commit()

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useHubSession } from './HubSession'
+import { leaveLab } from '../lib/labAuth'
 import { useSession } from './Session'
 import { ReportIssue } from './ReportIssue'
 import { ThemeToggle } from './ThemeToggle'
@@ -36,7 +38,27 @@ const NAV: { label: string; items: { to: string; label: string; end?: boolean }[
 const RELEASE = import.meta.env.VITE_RELEASE ?? 'dev'
 
 export function Layout() {
-  const { me, matrix, openAccess, signOut } = useSession()
+  const { me, matrix } = useSession()
+  //: Governance belongs to NanoSchool rather than to this lab. Feedback is for
+  //: everyone; the reviewer screens appear only for an account NanoSchool marks
+  //: as a reviewer, which is a courtesy rather than the gate — the screens and
+  //: the hub both check for themselves.
+  const { identity } = useHubSession()
+  const nav = [
+    ...NAV,
+    {
+      label: 'Governance',
+      items: [
+        { to: '/feedback', label: 'Send feedback' },
+        ...(identity?.isReviewer
+          ? [
+              { to: '/reviewer-agreement', label: 'Reviewer agreement' },
+              { to: '/expert-review', label: 'Expert review form' },
+            ]
+          : []),
+      ],
+    },
+  ]
   const location = useLocation()
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [navOpen, setNavOpen] = useState(false)
@@ -86,7 +108,7 @@ export function Layout() {
             Lab Home
           </NavLink>
 
-          {NAV.map((group) => {
+          {nav.map((group) => {
             const current = group.items.some((item) => location.pathname.startsWith(item.to))
             const open = openMenu === group.label
             return (
@@ -125,12 +147,17 @@ export function Layout() {
             {me?.currentWeek ? ` · week ${me.currentWeek}` : ''}
           </span>
           <ThemeToggle />
-          {/* Open access has no credentials, so there is nothing to sign out of. */}
-          {openAccess ? null : (
-            <button type="button" className="secondary small" onClick={signOut}>
-              Sign out
-            </button>
-          )}
+          {/* One control, because on a shared machine the useful action is both:
+              leave the lab and leave nothing behind. The work stays on the
+              server and the next launch picks it up. */}
+          <button
+            type="button"
+            className="secondary small tip"
+            data-tip="Ends this session and returns to live-labs.org"
+            onClick={leaveLab}
+          >
+            Leave lab
+          </button>
           <button
             type="button"
             className="secondary small nav-toggle"
@@ -165,7 +192,8 @@ export function Layout() {
             for NanoSchool's eight-week single-cell and spatial transcriptomics program.
           </span>
           <span className="release-stamp">
-            <ReportIssue /> · {openAccess ? 'Open lab session · ' : ''}Release {RELEASE}
+            <ReportIssue /> ·{' '}
+            {me?.authSource === 'local' ? 'Local session · ' : ''}Release {RELEASE}
           </span>
         </div>
       </footer>

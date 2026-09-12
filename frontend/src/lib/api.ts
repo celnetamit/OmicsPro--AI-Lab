@@ -102,8 +102,8 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   }
 
   if (!response.ok) {
-    //: An expired or invalid token: drop it and let the app return to sign-in
-    //: rather than leaving every subsequent screen showing an error.
+    //: An expired or invalid token: drop it and let the access gate offer a
+    //: relaunch, rather than leaving every subsequent screen showing an error.
     if (response.status === 401) {
       setToken(null)
       window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))

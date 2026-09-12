@@ -57,12 +57,27 @@ def test_basic_auto_grant_is_idempotent(db_session, learner):
     assert effective_tier(db_session, learner.id) is AccessTier.BASIC
 
 
-def test_registration_auto_grants_basic(client):
-    token = client.post(
-        "/api/auth/register",
-        json={"email": "new@example.com", "password": "secret-pass"},
-    ).json()["access_token"]
-    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
+def test_a_new_nanoschool_account_auto_grants_basic(db_session, client):
+    """Basic comes with enrollment and is never sold (spec 2). Enrollment is
+    now the launch itself: the hub says this person may open the lab."""
+    from app.core.hub import HubIdentity
+    from app.core.lab_session import provision
+    from app.core.security import create_access_token
+
+    user = provision(
+        db_session,
+        HubIdentity(
+            user_id="hub-new-learner",
+            email="new@example.com",
+            name="New Learner",
+            role="USER",
+            is_reviewer=False,
+            lab_id="lab-1",
+            lab_slug="omicslab",
+        ),
+    )
+    headers = {"Authorization": f"Bearer {create_access_token(user.id)}"}
+    me = client.get("/api/auth/me", headers=headers).json()
     assert me["accessTier"] == AccessTier.BASIC.value
 
 

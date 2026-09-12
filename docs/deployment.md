@@ -44,16 +44,20 @@ Changing `POSTGRES_PASSWORD` later does nothing until the volume is recreated.
 7. Keep one `api` replica (see "Scaling" below) and give the server at least
    4 GB of memory: the science image builds Scanpy, and a Core run holds its
    matrix in memory.
-8. After the first successful deploy, seed the launch content once from the
-   `api` container's terminal in Coolify. Pass the admin password inline so it
-   never sits in the service's environment; it must meet the password policy:
+8. Register the lab in the NanoSchool catalogue — see "Access" below. Until
+   that row exists and is enabled, every launch is refused with "Requested lab
+   not found or disabled", because the hub is what authorises a session.
+9. After the first successful deploy, seed the launch content once from the
+   `api` container's terminal in Coolify:
 
-       OMICSLAB_ADMIN_EMAIL=you@example.org OMICSLAB_ADMIN_PASSWORD='…' python scripts/seed.py
+       OMICSLAB_ADMIN_EMAIL=you@example.org python scripts/seed.py
 
-   This creates the administrator, the guided dataset records (awaiting their
-   files) and the two labelled synthetic fixtures. Running it again changes
-   nothing that already exists.
-9. Optional, same terminal: `python scripts/fetch_gene_sets.py` installs the
+   This appoints the administrator, and creates the guided dataset records
+   (awaiting their files) and the two labelled synthetic fixtures. Running it
+   again changes nothing that already exists. There is no password to set: the
+   row waits for that person's first NanoSchool launch and is matched to it by
+   email.
+10. Optional, same terminal: `python scripts/fetch_gene_sets.py` installs the
    locked Hallmark gene sets and `python scripts/fetch_interactions.py` the
    ligand-receptor database. Without them, pathway enrichment and the
    communication module stop with a message naming the missing asset.
@@ -62,6 +66,64 @@ Locally the same topology runs with:
 
     cp .env.example .env      # then fill in the two secrets
     docker compose up --build
+
+## Access: NanoSchool signs everybody in
+
+This lab holds no credentials. There is no sign-in screen, no registration and
+no password column in the database — a session exists only because
+live-labs.org verified a launch.
+
+    dashboard ──▶ omicslab.live-labs.org/?auth_token=… (one-shot, ~5 min)
+                        │
+                        ▼
+                  POST /api/auth/lab-session       (this lab's API)
+                        │
+                        ▼
+                  POST live-labs.org/api/auth/authorize-lab
+                        │  { authorized, user{id,email,name,role,isReviewer}, lab, sessionToken }
+                        ▼
+                  lab session token (12 h) + the account it belongs to
+
+The verification is done by the API, not the browser. The sibling Live Labs are
+client-only apps whose guard asks the hub directly; there is no server behind
+them to mislead. This lab stores runs, reports and assessments against an
+account, so if the page decided who it was, anyone could claim to be anyone.
+Asking once also matters: the hub replay-checks launch tokens, and a design
+where both the page and the server verified would spend that budget twice.
+
+**What has to be true for a learner to get in**
+
+1. A `Lab` row on the hub with `enabled = true`, and a `domainUrl` or `slug`
+   matching this deployment. Add it in the hub's admin (Admin → Labs → add),
+   or from its repository: `prisma/labs-snapshot.json` + `npm run import:labs`.
+   This lab sends both `domainUrl` and `labSlug` (`OMICSLAB_LAB_SLUG`), so
+   either one resolving is enough.
+2. Access for that account: a `LabAccess` row, or the platform `SUPER_ADMIN`
+   role. This is the hub's decision and this lab does not second-guess it.
+3. The hub reachable **from the API container**. `OMICSLAB_HUB_BASE_URL` is set
+   from `VITE_HUB_URL` by `docker-compose.yml`; production refuses to start if
+   it is not https.
+
+**Administrators.** The hub roles `ADMIN` and `SUPER_ADMIN` open this lab's
+admin console. For an operator who has neither — someone who runs ingestion and
+dataset sign-off but is an ordinary learner on the platform — set
+`OMICSLAB_ADMIN_EMAIL` and run `scripts/seed.py`: it writes an empty
+administrator row that is adopted, by email, on that person's first launch.
+Launching never *removes* an admin flag set in this database.
+
+**Reviewers.** The hub's `isReviewer` flag decides whether the reviewer
+agreement and expert review form appear. It is refreshed on every launch.
+
+**Deploying this change over an open-access deployment.** Sessions issued by the
+old credential-less endpoint carry an older token version and are refused, so
+everyone is sent to the dashboard on their next page load rather than keeping a
+session for up to twelve hours. The `guest@omicslab.local` row and any runs made
+under it stay in the database; nothing can sign into it again.
+
+**Local development.** There is no hub on a laptop. Build the front end with
+`VITE_DISABLE_LAB_AUTH=true` and run the API with
+`OMICSLAB_DEV_LAB_SESSION=true`; both switches are needed, the API's is refused
+in production, and the lab shows a banner saying nobody has been verified.
 
 ## Scientific runtimes
 
@@ -167,47 +229,35 @@ a public API.
 | Logs | JSON lines on stdout (`OMICSLAB_LOG_JSON=false` for human-readable), every line carrying `requestId` |
 | A learner's bug report | Errors show a reference; it is the `requestId` in the log |
 
-## Open access
+## The tier a learner starts with
 
-`OMICSLAB_OPEN_ACCESS` is **true**, so the Live Lab opens straight into the
-workspace: no sign-in screen, and no sign-out control. A visitor is signed in
-to one shared, enrolled, Basic-tier account (`OMICSLAB_GUEST_EMAIL`) issued by
-`POST /api/auth/guest`. Every run, interpretation and report still belongs to a
-real user, because the whole record model is per-user; the account's password
-is random and never issued, so it cannot be logged into.
+`OMICSLAB_GRANTED_TIER` sets the tier every NanoSchool account holds on arrival
+in this lab. It defaults to `basic`, which is what a real learner gets and the
+only correct value for a deployment real learners use. Raise it to `moderate`
+or `expert` on an evaluation or demonstration deployment and every paid feature
+opens — upload, compare runs, the communication explorer, the spatial workflow,
+the capstone.
 
-What this means while it is on:
+It is a **grant, not a bypass**: the account simply holds a higher entitlement,
+and every server-side check runs against it exactly as it always does. Nothing
+in the entitlement matrix is skipped, so what you are testing is the real
+gating logic rather than a disabled version of it.
 
-- **Everyone shares one workspace.** Any visitor sees and can act on the runs,
-  interpretations and reports any other visitor created. It is a demonstration
-  and evaluation mode, not a multi-tenant one.
-- Registration and login still work and are still tested; they are simply not
-  the entry point.
+Two consequences worth stating. A *purchased* entitlement is never touched by
+this switch — that is asserted by a test. And it is applied when a session is
+opened, in both directions: raising it grants the tier, lowering it (back to
+`basic`, say) revokes the grant this switch made, on that account's next
+launch. So after changing the variable, launch the lab again from the dashboard
+to see the new tier.
 
-### Opening the paid features for testing
+`OMICSLAB_OPEN_ACCESS_TIER` is the name this setting had while the lab ran on a
+shared credential-less session; `docker-compose.yml` still reads it and passes
+it through, so an existing deployment's configuration keeps working.
 
-`OMICSLAB_OPEN_ACCESS_TIER` sets the tier the shared session holds. It defaults
-to `basic`, which is what a real learner gets and the only correct value for
-anything the public can reach. Raise it to `moderate` or `expert` on an
-evaluation or development deployment and every paid feature opens — upload,
-compare runs, the communication explorer, the spatial workflow, the capstone.
-
-It is a **grant, not a bypass**: the shared account simply holds a higher
-entitlement, and every server-side check runs against it exactly as it always
-does. Nothing in the entitlement matrix is skipped, so what you are testing is
-the real gating logic rather than a disabled version of it.
-
-Two consequences worth stating. It applies only to the shared open-access
-account — a registered learner's tier still comes from their own entitlements,
-which is asserted by a test. And it takes effect when a session is issued, in
-both directions: raising it grants the tier, and lowering it (back to `basic`,
-say) revokes that grant, the next time any browser opens a new session. Open
-the site once in a private window after changing the variable, and every
-browser sharing the account sees the new tier on its next reload.
-
-Set `OMICSLAB_OPEN_ACCESS=false` to put the sign-in screen back in front of the
-app. Nothing else changes: the guest endpoint starts returning 404, the client
-falls through to the sign-in screen, and the sign-out control returns.
+Two things the old open-access mode did that this replaces: everyone shared one
+workspace (any visitor could act on another's runs), and the lab could be opened
+by anyone who found the address. Both are gone — each learner now has their own
+account, and the address alone opens nothing.
 
 ## Operational facts worth knowing before launch
 

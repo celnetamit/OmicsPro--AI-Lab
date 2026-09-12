@@ -22,8 +22,16 @@ export interface Me {
   programCode: string | null
   cohort: string | null
   activePhase: number
-  /** True when this deployment opens without a sign-in. */
-  openAccess: boolean
+  /** Mirrors the hub's expert-reviewer flag, as the server last saw it. */
+  isReviewer: boolean
+  /**
+   * Where this session came from. "nanoschool" is a verified launch; "local" is
+   * a development session or a row an operator seeded, and the interface says
+   * so rather than implying the hub vouched for it.
+   */
+  authSource: 'nanoschool' | 'local'
+  /** The hub this deployment is attached to, for links back to it. */
+  hubUrl: string
 }
 
 export interface FeatureRow {

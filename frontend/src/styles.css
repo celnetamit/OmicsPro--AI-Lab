@@ -1496,3 +1496,29 @@ pre {
 
 /* ---------------------------------------------------------------- reports -- */
 .report-run { min-width: 17em; }
+
+/* ------------------------------------------------------------ governance -- */
+/* The reviewer agreement is a legal document rendered on screen: it reads as a
+   document, at a document's measure, rather than as interface copy. */
+.agreement { max-width: 82ch; }
+.agreement section { margin-top: var(--space-5); }
+.agreement h4 { font-size: 15px; margin: 0 0 var(--space-2); }
+.agreement h5 { font-size: 13.5px; margin: var(--space-3) 0 var(--space-1); color: var(--ink-soft); }
+.agreement p { margin: 0 0 var(--space-2); }
+.agreement ul { margin: 0 0 var(--space-2); padding-left: 1.2em; }
+.agreement li + li { margin-top: 3px; }
+.agreement .issuer-line { margin: 0; }
+
+/* A checkbox or radio and its words, kept on one line and clickable together. */
+.check { display: flex; align-items: baseline; gap: 8px; font-weight: 400; }
+.check input { flex: none; }
+.check-grid { display: grid; gap: 8px; }
+@media (min-width: 720px) {
+  .check-grid { grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
+}
+/* A label for a group of controls, which has no single input to point at. */
+.label-text { display: block; font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: var(--space-2); }
+
+.severity-key { list-style: none; padding: 0; margin: 0 0 var(--space-3); display: grid; gap: 4px; }
+.issue-row { border-top: 1px solid var(--line); padding-top: var(--space-4); margin-top: var(--space-4); }
+.issue-row:first-of-type { border-top: 0; padding-top: 0; }

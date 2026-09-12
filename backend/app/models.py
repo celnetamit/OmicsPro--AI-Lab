@@ -49,8 +49,20 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(200), default="")
-    password_hash: Mapped[str] = mapped_column(String(255))
+    #: The hub's user id, which is what this account actually is. Null on a row
+    #: an operator created ahead of the person's first launch (seeding an
+    #: administrator by email); it is filled in when they arrive.
+    #:
+    #: There is no password column: this lab authenticates nobody. A session
+    #: exists only because NanoSchool verified a launch — see app/core/hub.py.
+    hub_user_id: Mapped[Optional[str]] = mapped_column(
+        String(64), unique=True, index=True, default=None
+    )
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: Mirrors the hub's expert-reviewer flag, refreshed on every launch. A
+    #: presentation hint for the review screens, never an authorisation: the
+    #: hub re-reads its own copy when a review is filed.
+    is_reviewer: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
     entitlements: Mapped[list["Entitlement"]] = relationship(back_populates="user")
