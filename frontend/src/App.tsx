@@ -4,6 +4,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { Layout } from './components/Layout'
 import { HubSessionProvider } from './components/HubSession'
 import { LabAuthGuard } from './components/LabAuthGuard'
+import { ReviewerAgreementGate } from './components/ReviewerAgreementGate'
 import { SessionProvider, useSession } from './components/Session'
 import { Skeleton } from './components/ui'
 import { LabHome } from './pages/LabHome'
@@ -114,7 +115,11 @@ export function App() {
         <LabAuthGuard>
           <SessionProvider>
             <HubSessionProvider>
-              <Routed />
+              {/* An expert reviewer signs the agreement before any of the lab
+                  renders; everyone else passes straight through. */}
+              <ReviewerAgreementGate>
+                <Routed />
+              </ReviewerAgreementGate>
             </HubSessionProvider>
           </SessionProvider>
         </LabAuthGuard>

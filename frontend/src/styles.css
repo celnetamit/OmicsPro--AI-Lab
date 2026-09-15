@@ -1522,3 +1522,12 @@ pre {
 .severity-key { list-style: none; padding: 0; margin: 0 0 var(--space-3); display: grid; gap: 4px; }
 .issue-row { border-top: 1px solid var(--line); padding-top: var(--space-4); margin-top: var(--space-4); }
 .issue-row:first-of-type { border-top: 0; padding-top: 0; }
+
+/* ------------------------------------------------ reviewer agreement gate -- */
+/* A reviewer's first screen: the agreement, without the lab's navigation, so
+   nothing in the lab is reachable until it is signed. */
+.gate-page { min-height: 100vh; background: var(--ground); padding-block: var(--space-5); }
+.gate-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-4);
+}

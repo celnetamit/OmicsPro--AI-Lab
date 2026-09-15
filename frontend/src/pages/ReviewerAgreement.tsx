@@ -11,6 +11,10 @@
  *
  * Whether the agreement is signed is asked of the hub, never remembered in this
  * browser. An undertaking a browser could mark as given is not an undertaking.
+ *
+ * Two screens use what is here. A reviewer meets `AgreementGateScreen` before
+ * the lab opens at all (see components/ReviewerAgreementGate.tsx); the page
+ * under Governance stays, so a reviewer can reread what they signed.
  */
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -35,6 +39,8 @@ import { fetchAgreementStatus, signAgreement, type AgreementStatus } from '../li
 
 const today = () => new Date().toISOString().slice(0, 10)
 
+type Recorded = { id: string; acknowledgedAt: string; note: string }
+
 function emptyForm(name: string, email: string): AcknowledgementForm {
   return {
     labTitle: LAB_TITLE,
@@ -54,7 +60,7 @@ function emptyForm(name: string, email: string): AcknowledgementForm {
 }
 
 /** The document itself, exactly as issued. */
-function AgreementText() {
+export function AgreementText() {
   return (
     <div className="card agreement">
       <h3>{AGREEMENT_TITLE}</h3>
@@ -95,27 +101,34 @@ function AgreementText() {
   )
 }
 
-export function ReviewerAgreement() {
-  const { identity, message } = useHubSession()
-  const [status, setStatus] = useState<AgreementStatus | null>(null)
-  const [form, setForm] = useState<AcknowledgementForm>(() => emptyForm('', ''))
+/**
+ * The acknowledgement, and the call that records it on the hub.
+ *
+ * `onSigned` runs only when the hub has said the signature is recorded. Every
+ * other outcome keeps the form on screen with a message saying nothing was
+ * recorded, so a reviewer is never waved through on a signature that did not
+ * land.
+ */
+export function AgreementSigningForm({
+  name,
+  email,
+  onSigned,
+}: {
+  name: string
+  email: string
+  onSigned: (recorded: Recorded) => void
+}) {
+  const [form, setForm] = useState<AcknowledgementForm>(() => emptyForm(name, email))
   const [failure, setFailure] = useState('')
   const [busy, setBusy] = useState(false)
-  const [recorded, setRecorded] = useState<{ id: string; acknowledgedAt: string; note: string } | null>(null)
 
   useEffect(() => {
-    if (!identity) return
     setForm((current) => ({
       ...current,
-      reviewerName: current.reviewerName || identity.name || '',
-      email: current.email || identity.email || '',
+      reviewerName: current.reviewerName || name,
+      email: current.email || email,
     }))
-  }, [identity])
-
-  useEffect(() => {
-    if (!hasHubSession()) return
-    void fetchAgreementStatus().then(setStatus)
-  }, [])
+  }, [name, email])
 
   function change(patch: Partial<AcknowledgementForm>) {
     setForm((current) => ({ ...current, ...patch }))
@@ -145,12 +158,178 @@ export function ReviewerAgreement() {
         setFailure(result.message)
         return
       }
-      setRecorded({ id: result.id, acknowledgedAt: result.acknowledgedAt, note: result.note })
-      setStatus(await fetchAgreementStatus())
+      onSigned({ id: result.id, acknowledgedAt: result.acknowledgedAt, note: result.note })
     } finally {
       setBusy(false)
     }
   }
+
+  return (
+    <form className="card" onSubmit={submit}>
+      <h3>Reviewer acknowledgement</h3>
+      <p className="hint">
+        Version {AGREEMENT_VERSION}. Recorded against your NanoSchool account together with a
+        fingerprint of the text above.
+      </p>
+
+      <div className="grid-2">
+        <div className="field">
+          <label htmlFor="ra-lab">Lab under review</label>
+          <input id="ra-lab" value={form.labTitle} readOnly />
+        </div>
+        <div className="field">
+          <label htmlFor="ra-build">Build</label>
+          <input id="ra-build" value={form.reviewBuild} readOnly />
+        </div>
+      </div>
+
+      <div className="grid-2">
+        <div className="field">
+          <label htmlFor="ra-name">Reviewer name</label>
+          <input id="ra-name" value={form.reviewerName} onChange={(e) => change({ reviewerName: e.target.value })} />
+        </div>
+        <div className="field">
+          <label htmlFor="ra-designation">Designation</label>
+          <input
+            id="ra-designation"
+            value={form.designation}
+            onChange={(e) => change({ designation: e.target.value })}
+            placeholder="e.g. Professor, Principal Scientist"
+          />
+        </div>
+      </div>
+
+      <div className="grid-2">
+        <div className="field">
+          <label htmlFor="ra-institution">Institution or organisation</label>
+          <input
+            id="ra-institution"
+            value={form.institution}
+            onChange={(e) => change({ institution: e.target.value })}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="ra-email">Email</label>
+          <input id="ra-email" type="email" value={form.email} onChange={(e) => change({ email: e.target.value })} />
+        </div>
+      </div>
+
+      <div className="grid-2">
+        <div className="field">
+          <label htmlFor="ra-domain">Domain</label>
+          <input id="ra-domain" value={form.domain} onChange={(e) => change({ domain: e.target.value })} />
+        </div>
+        <div className="field">
+          <label htmlFor="ra-expected">Expected completion (optional)</label>
+          <input
+            id="ra-expected"
+            type="date"
+            value={form.expectedCompletion}
+            onChange={(e) => change({ expectedCompletion: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="field">
+        <span className="label-text">Review roles you are taking on</span>
+        <div className="check-grid">
+          {REVIEW_ROLES.map((role) => (
+            <label className="check" key={role.id}>
+              <input
+                type="checkbox"
+                checked={form.reviewRoles.includes(role.id)}
+                onChange={() => toggleRole(role.id)}
+              />
+              {role.label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="field">
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={form.confirmed}
+            onChange={(e) => change({ confirmed: e.target.checked })}
+          />
+          {AGREEMENT_CONFIRMATION}
+        </label>
+      </div>
+
+      <div className="grid-2">
+        <div className="field">
+          <label htmlFor="ra-signature">Signature (type your full name)</label>
+          <input id="ra-signature" value={form.signature} onChange={(e) => change({ signature: e.target.value })} />
+        </div>
+        <div className="field">
+          <label htmlFor="ra-signed-date">Date</label>
+          <input
+            id="ra-signed-date"
+            type="date"
+            value={form.signedDate}
+            onChange={(e) => change({ signedDate: e.target.value })}
+          />
+        </div>
+      </div>
+
+      {failure ? <p className="warning" role="alert">{failure}</p> : null}
+
+      <button type="submit" disabled={busy}>
+        {busy ? 'Recording…' : 'Sign and open the lab'}
+      </button>
+    </form>
+  )
+}
+
+/** What an expert reviewer sees before the lab opens, until they have signed. */
+export function AgreementGateScreen({
+  status,
+  name,
+  email,
+  onSigned,
+}: {
+  status: AgreementStatus | null
+  name: string
+  email: string
+  onSigned: (recorded: Recorded) => void
+}) {
+  return (
+    <>
+      <PageHeader eyebrow="Before the lab opens" title="Reviewer agreement" lede={AGREEMENT_SUBTITLE} />
+
+      <div className="card measure">
+        <h3>Sign the agreement to start reviewing</h3>
+        <p>
+          NanoSchool has marked this account as an expert reviewer for {LAB_TITLE}. The lab opens as soon
+          as you have read the agreement below and recorded your acknowledgement. It is recorded against your
+          NanoSchool account for this lab, so you will not be asked again for this version of the wording.
+        </p>
+      </div>
+
+      {status?.previouslySignedVersion ? (
+        <p className="caveat">
+          You signed an earlier version ({status.previouslySignedVersion}) on{' '}
+          {status.previouslySignedAt ? new Date(status.previouslySignedAt).toLocaleDateString() : 'an earlier date'}.
+          The wording has changed since, so this version needs signing before the lab opens.
+        </p>
+      ) : null}
+
+      <AgreementText />
+      <AgreementSigningForm name={name} email={email} onSigned={onSigned} />
+    </>
+  )
+}
+
+export function ReviewerAgreement() {
+  const { identity, message } = useHubSession()
+  const [status, setStatus] = useState<AgreementStatus | null>(null)
+  const [recorded, setRecorded] = useState<Recorded | null>(null)
+
+  useEffect(() => {
+    if (!hasHubSession()) return
+    void fetchAgreementStatus().then(setStatus)
+  }, [])
 
   if (!hasHubSession() || !identity) {
     return (
@@ -239,120 +418,14 @@ export function ReviewerAgreement() {
       <AgreementText />
 
       {signed || recorded ? null : (
-        <form className="card" onSubmit={submit}>
-          <h3>Reviewer acknowledgement</h3>
-          <p className="hint">
-            Version {AGREEMENT_VERSION}. Recorded against your NanoSchool account together with a
-            fingerprint of the text above.
-          </p>
-
-          <div className="grid-2">
-            <div className="field">
-              <label htmlFor="ra-lab">Lab under review</label>
-              <input id="ra-lab" value={form.labTitle} readOnly />
-            </div>
-            <div className="field">
-              <label htmlFor="ra-build">Build</label>
-              <input id="ra-build" value={form.reviewBuild} readOnly />
-            </div>
-          </div>
-
-          <div className="grid-2">
-            <div className="field">
-              <label htmlFor="ra-name">Reviewer name</label>
-              <input id="ra-name" value={form.reviewerName} onChange={(e) => change({ reviewerName: e.target.value })} />
-            </div>
-            <div className="field">
-              <label htmlFor="ra-designation">Designation</label>
-              <input
-                id="ra-designation"
-                value={form.designation}
-                onChange={(e) => change({ designation: e.target.value })}
-                placeholder="e.g. Professor, Principal Scientist"
-              />
-            </div>
-          </div>
-
-          <div className="grid-2">
-            <div className="field">
-              <label htmlFor="ra-institution">Institution or organisation</label>
-              <input
-                id="ra-institution"
-                value={form.institution}
-                onChange={(e) => change({ institution: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="ra-email">Email</label>
-              <input id="ra-email" type="email" value={form.email} onChange={(e) => change({ email: e.target.value })} />
-            </div>
-          </div>
-
-          <div className="grid-2">
-            <div className="field">
-              <label htmlFor="ra-domain">Domain</label>
-              <input id="ra-domain" value={form.domain} onChange={(e) => change({ domain: e.target.value })} />
-            </div>
-            <div className="field">
-              <label htmlFor="ra-expected">Expected completion (optional)</label>
-              <input
-                id="ra-expected"
-                type="date"
-                value={form.expectedCompletion}
-                onChange={(e) => change({ expectedCompletion: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="field">
-            <span className="label-text">Review roles you are taking on</span>
-            <div className="check-grid">
-              {REVIEW_ROLES.map((role) => (
-                <label className="check" key={role.id}>
-                  <input
-                    type="checkbox"
-                    checked={form.reviewRoles.includes(role.id)}
-                    onChange={() => toggleRole(role.id)}
-                  />
-                  {role.label}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="field">
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={form.confirmed}
-                onChange={(e) => change({ confirmed: e.target.checked })}
-              />
-              {AGREEMENT_CONFIRMATION}
-            </label>
-          </div>
-
-          <div className="grid-2">
-            <div className="field">
-              <label htmlFor="ra-signature">Signature (type your full name)</label>
-              <input id="ra-signature" value={form.signature} onChange={(e) => change({ signature: e.target.value })} />
-            </div>
-            <div className="field">
-              <label htmlFor="ra-signed-date">Date</label>
-              <input
-                id="ra-signed-date"
-                type="date"
-                value={form.signedDate}
-                onChange={(e) => change({ signedDate: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {failure ? <p className="warning" role="alert">{failure}</p> : null}
-
-          <button type="submit" disabled={busy}>
-            {busy ? 'Recording…' : 'Sign and record'}
-          </button>
-        </form>
+        <AgreementSigningForm
+          name={identity.name ?? ''}
+          email={identity.email ?? ''}
+          onSigned={(result) => {
+            setRecorded(result)
+            void fetchAgreementStatus().then(setStatus)
+          }}
+        />
       )}
 
       {status === null && hasHubSession() ? <Skeleton lines={2} title={false} /> : null}
